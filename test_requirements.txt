@@ -1,0 +1,10 @@
+# Testing requirements for PolyhedronEmu
+# These are the minimal requirements needed to run the test suite
+
+# No external dependencies required for basic testing
+# All tests use Python's built-in unittest framework and mocking capabilities
+
+# Optional: For enhanced testing features (uncomment if needed)
+# pytest>=7.0.0
+# pytest-cov>=4.0.0
+# coverage>=6.0 

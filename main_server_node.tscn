@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://dws56txx2avl0"]
+
+[ext_resource type="Script" path="res://main_server_node.py" id="1_vupj1"]
+
+[node name="main_server_node" type="Node3D"]
+script = ExtResource("1_vupj1")
+SERVER_PORT = 25860

@@ -1,0 +1,3 @@
+# To be properly reformatted in future. This is to keep track of things and their licenses
+
+D12 icon (free with attribution): <a href="https://www.flaticon.com/free-icons/dice-d12" title="dice-d12 icons">Dice-d12 icons created by Michelle Lukezic - Flaticon</a>
