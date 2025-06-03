@@ -3,6 +3,7 @@ import os
 import traceback
 from datetime import datetime
 
+
 class ServerLogger:
     def __init__(self, name: str = 'TCPServer', log_dir: str = 'logs'):
         self.logger = self._setup_logger(name, log_dir)
@@ -15,30 +16,32 @@ class ServerLogger:
         try:
             if not os.path.exists(log_dir):
                 os.makedirs(log_dir)
-            
+
             logger = logging.getLogger(name)
             logger.setLevel(logging.DEBUG)
-            
+
             if logger.handlers:
                 return logger
-            
+
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            fh = logging.FileHandler(f'{log_dir}/server_{timestamp}.log')
+            filename = f'{log_dir}/server_{timestamp}.log'
+            fh = logging.FileHandler(filename)
             fh.setLevel(logging.DEBUG)
-            
+
             ch = logging.StreamHandler()
             ch.setLevel(logging.INFO)
-            
-            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+            fmt = '%(asctime)s - %(levelname)s - %(message)s'
+            formatter = logging.Formatter(fmt)
             fh.setFormatter(formatter)
             ch.setFormatter(formatter)
-            
+
             logger.addHandler(fh)
             logger.addHandler(ch)
-            
+
             logger.info("Logging system initialized")
             return logger
-            
+
         except Exception as e:
             print(f"Error setting up logging: {str(e)}")
             basic_logger = logging.getLogger(name)
@@ -47,10 +50,11 @@ class ServerLogger:
                 basic_logger.addHandler(logging.StreamHandler())
             return basic_logger
 
-    def log_exception(self, message: str, exc: Exception, level: int = logging.ERROR) -> None:
+    def log_exception(self, message: str, exc: Exception,
+                      level: int = logging.ERROR) -> None:
         """
         Log an exception with a custom message and full traceback.
-        
+
         Args:
             message: Custom message describing the context of the exception
             exc: The exception object
@@ -71,6 +75,8 @@ class ServerLogger:
     def error(self, msg: str) -> None:
         self.logger.error(msg)
 
-def create_logger(name: str = 'TCPServer', log_dir: str = 'logs') -> ServerLogger:
+
+def create_logger(name: str = 'TCPServer',
+                  log_dir: str = 'logs') -> ServerLogger:
     """Create and return a new ServerLogger instance."""
-    return ServerLogger(name, log_dir) 
+    return ServerLogger(name, log_dir)
