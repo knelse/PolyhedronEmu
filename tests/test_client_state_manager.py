@@ -20,8 +20,7 @@ class TestClientStateManager(TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.mock_logger = Mock()
-        self.state_manager = ClientStateManager()
-        self.state_manager.logger = self.mock_logger
+        self.state_manager = ClientStateManager(self.mock_logger)
         self.player_index = 0x5000
 
     def test_add_client_initial_state(self):
@@ -32,7 +31,7 @@ class TestClientStateManager(TestCase):
         self.assertEqual(state, ClientState.BASE)
 
         expected_msg = (
-            f"Client 0x{self.player_index:04X} added with state BASE"
+            f"Client 0x{self.player_index:04X} added with state: base"
         )
         self.mock_logger.info.assert_called_with(expected_msg)
 
@@ -45,7 +44,10 @@ class TestClientStateManager(TestCase):
         state = self.state_manager.get_client_state(self.player_index)
         self.assertIsNone(state)
 
-        expected_msg = f"Client 0x{self.player_index:04X} removed"
+        expected_msg = (
+            f"Client 0x{self.player_index:04X} removed from state tracking "
+            f"(was in base)"
+        )
         self.mock_logger.info.assert_called_with(expected_msg)
 
     def test_remove_nonexistent_client(self):
@@ -66,10 +68,10 @@ class TestClientStateManager(TestCase):
         self.assertEqual(state, ClientState.IN_GAME)
 
         expected_msg = (
-            f"Client 0x{self.player_index:04X} state changed to "
-            f"{ClientState.IN_GAME.value}"
+            f"Client 0x{self.player_index:04X} state changed: "
+            f"base -> in_game"
         )
-        self.mock_logger.debug.assert_called_with(expected_msg)
+        self.mock_logger.info.assert_called_with(expected_msg)
 
     def test_set_client_state_same_state(self):
         """Test setting client to same state."""
@@ -81,12 +83,12 @@ class TestClientStateManager(TestCase):
         )
         self.assertTrue(result)
 
-        # Should still log the state change
+        # Should not log a state change since it's the same state
+        # Only the add_client call should have logged
         expected_msg = (
-            f"Client 0x{self.player_index:04X} state changed to "
-            f"{ClientState.BASE.value}"
+            f"Client 0x{self.player_index:04X} added with state: base"
         )
-        self.mock_logger.debug.assert_called_with(expected_msg)
+        self.mock_logger.info.assert_called_with(expected_msg)
 
     def test_set_client_state_unknown_client(self):
         """Test setting state for unknown client."""
@@ -96,8 +98,8 @@ class TestClientStateManager(TestCase):
         self.assertFalse(result)
 
         expected_msg = (
-            f"Attempted to set state for unknown client 0x"
-            f"{self.player_index:04X}"
+            f"Attempted to set state for unknown client "
+            f"0x{self.player_index:04X}"
         )
         self.mock_logger.warning.assert_called_with(expected_msg)
 
@@ -114,9 +116,10 @@ class TestClientStateManager(TestCase):
         self.assertEqual(state, ClientState.INIT_READY_FOR_INITIAL_DATA)
 
         expected_msg = (
-            f"Client 0x{self.player_index:04X} transitioned to init ready"
+            f"Client 0x{self.player_index:04X} transitioned to init ready "
+            f"state"
         )
-        self.mock_logger.info.assert_any_call(expected_msg)
+        self.mock_logger.info.assert_called_with(expected_msg)
 
     def test_transition_to_init_ready_unknown_client(self):
         """Test transition to init ready for unknown client."""
@@ -126,8 +129,8 @@ class TestClientStateManager(TestCase):
         self.assertFalse(result)
 
         expected_msg = (
-            f"Attempted to transition unknown client 0x"
-            f"{self.player_index:04X} to init ready"
+            f"Cannot transition unknown client "
+            f"0x{self.player_index:04X} to init ready"
         )
         self.mock_logger.warning.assert_called_with(expected_msg)
 
@@ -145,9 +148,9 @@ class TestClientStateManager(TestCase):
 
         expected_msg = (
             f"Client 0x{self.player_index:04X} cannot transition to init "
-            f"ready from {ClientState.IN_GAME.value}"
+            f"ready from in_game"
         )
-        self.mock_logger.warning.assert_any_call(expected_msg)
+        self.mock_logger.warning.assert_called_with(expected_msg)
 
     def test_transition_to_game_success(self):
         """Test successful transition to game state."""
@@ -163,7 +166,7 @@ class TestClientStateManager(TestCase):
         expected_msg = (
             f"Client 0x{self.player_index:04X} transitioned to game state"
         )
-        self.mock_logger.info.assert_any_call(expected_msg)
+        self.mock_logger.info.assert_called_with(expected_msg)
 
     def test_transition_to_game_wrong_state(self):
         """Test transition to game from wrong state."""
@@ -175,9 +178,9 @@ class TestClientStateManager(TestCase):
 
         expected_msg = (
             f"Client 0x{self.player_index:04X} cannot transition to game "
-            f"from {ClientState.BASE.value}"
+            f"from base"
         )
-        self.mock_logger.warning.assert_any_call(expected_msg)
+        self.mock_logger.warning.assert_called_with(expected_msg)
 
     def test_get_clients_by_state(self):
         """Test getting clients by state."""

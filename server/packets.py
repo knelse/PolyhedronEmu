@@ -6,8 +6,14 @@ between the server and clients.
 """
 
 
-INIT_PACKET = bytes([
-    0xD1, 0x70, 0x20, 0x02,
-    0x63, 0x5F, 0x00, 0x00
-])
-# INIT_PACKET: Sent to clients upon successful connection
+class ServerPackets:
+    """Container for server-to-client packet definitions."""
+
+    # Initialization packet sent to new clients when they connect
+    INIT_PACKET = bytes([
+        0x0A, 0x00, 0xC8, 0x00, 0x6C, 0x07, 0x00, 0x00, 0x40, 0x0E
+    ])
+
+
+# Convenience constants for direct access
+INIT_PACKET = ServerPackets.INIT_PACKET

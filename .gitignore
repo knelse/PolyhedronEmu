@@ -4,5 +4,6 @@
 logs/
 .vscode/
 __pycache__/
-*/__pycache__/
+/__pycache__/
 tests/logs/
+tests/.pytest_cache/

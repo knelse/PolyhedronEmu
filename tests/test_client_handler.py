@@ -123,6 +123,9 @@ class TestClientHandler(unittest.TestCase):
         mock_client_socket = MockSocket()
         address = ("127.0.0.1", 12345)
 
+        # Set up the mock to return our mock socket
+        mock_server_socket.accept.return_value = (mock_client_socket, address)
+
         # Max players
         result = None
         self.mock_player_manager.get_next_player_index.return_value = result
