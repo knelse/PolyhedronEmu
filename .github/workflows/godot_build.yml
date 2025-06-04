@@ -19,10 +19,73 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
+      
+      - name: Verify and fix py4godot GDExtension
+        run: |
+          echo "=== Checking py4godot GDExtension setup ==="
+          
+          # Check if the GDExtension file exists
+          if [ ! -f "addons/py4godot/python.gdextension" ]; then
+            echo "ERROR: py4godot GDExtension file not found!"
+            exit 1
+          fi
+          
+          echo "✅ GDExtension file found"
+          echo "GDExtension configuration:"
+          cat addons/py4godot/python.gdextension
+          
+          # Check Windows Python distribution
+          if [ ! -d "addons/py4godot/cpython-3.12.4-windows64" ]; then
+            echo "ERROR: Windows Python distribution directory not found!"
+            exit 1
+          fi
+          
+          echo "✅ Windows Python distribution directory found"
+          
+          # Check for the specific DLL file that was failing
+          if [ ! -f "addons/py4godot/cpython-3.12.4-windows64/python/pythonscript.dll" ]; then
+            echo "ERROR: pythonscript.dll not found!"
+            echo "Directory contents:"
+            ls -la addons/py4godot/cpython-3.12.4-windows64/python/
+            exit 1
+          fi
+          
+          echo "✅ pythonscript.dll found"
+          
+          # Check file permissions and make executable if needed
+          chmod +x addons/py4godot/cpython-3.12.4-windows64/python/pythonscript.dll
+          chmod +x addons/py4godot/cpython-3.12.4-windows64/python/*.dll
+          
+          # Verify file is readable
+          if [ ! -r "addons/py4godot/cpython-3.12.4-windows64/python/pythonscript.dll" ]; then
+            echo "ERROR: pythonscript.dll is not readable!"
+            ls -la addons/py4godot/cpython-3.12.4-windows64/python/pythonscript.dll
+            exit 1
+          fi
+          
+          echo "✅ pythonscript.dll is readable"
+          
+          # List all DLL files to verify they're present
+          echo "Available DLL files:"
+          find addons/py4godot -name "*.dll" -type f
+          
+          # Check Linux distribution for headless build
+          if [ -d "addons/py4godot/cpython-3.12.4-linux64" ]; then
+            echo "✅ Linux Python distribution found"
+            if [ -f "addons/py4godot/cpython-3.12.4-linux64/python/bin/pythonscript.so" ]; then
+              echo "✅ Linux pythonscript.so found"
+              chmod +x addons/py4godot/cpython-3.12.4-linux64/python/bin/pythonscript.so
+            else
+              echo "⚠️  Linux pythonscript.so not found, listing contents:"
+              ls -la addons/py4godot/cpython-3.12.4-linux64/python/bin/ 2>/dev/null || echo "bin directory not found"
+            fi
+          else
+            echo "⚠️  Linux Python distribution not found"
+          fi
 
       - name: Setup py4godot for export
         run: |
-          echo "Setting up py4godot for headless export..."
+          echo "=== Setting up py4godot for headless export ==="
           
           # Create .godot directory if it doesn't exist
           mkdir -p .godot/
@@ -36,6 +99,13 @@ jobs:
             echo "" >> project.godot
             echo "py4godot/enabled=true" >> project.godot
           fi
+          
+          # Show final project.godot content for debugging
+          echo "Final project.godot content:"
+          cat project.godot
+          
+          find addons/py4godot -type f -exec chmod 644 {} \;
+          find addons/py4godot -type d -exec chmod 755 {} \;
 
       - name: Export artifacts
         id: export
