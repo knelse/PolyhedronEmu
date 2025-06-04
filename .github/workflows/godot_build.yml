@@ -187,7 +187,6 @@ jobs:
           
           # Test multiple Godot versions
           $godotVersions = @(
-            @{Version="4.3-stable"; Url="https://github.com/godotengine/godot-builds/releases/download/4.3-stable/Godot_v4.3-stable_win64.exe.zip"; Templates="https://github.com/godotengine/godot-builds/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz"; TemplateDir="4.3.stable"},
             @{Version="4.4-stable"; Url="https://github.com/godotengine/godot-builds/releases/download/4.4-stable/Godot_v4.4-stable_win64.exe.zip"; Templates="https://github.com/godotengine/godot-builds/releases/download/4.4-stable/Godot_v4.4-stable_export_templates.tpz"; TemplateDir="4.4.stable"},
             @{Version="4.4.1-stable"; Url="https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_win64.exe.zip"; Templates="https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz"; TemplateDir="4.4.1.stable"}
           )
@@ -302,12 +301,6 @@ jobs:
                }
                continue
              }
-          }
-          
-          if (-not $exportSuccess) {
-            Write-Host "❌ All Godot versions failed. Creating minimal build..." -ForegroundColor Red
-            # Create a minimal executable placeholder
-            "# PolyhedronEmu - Build failed, manual setup required" | Out-File "build\README.txt"
           }
           
           # Copy our prepared files regardless
