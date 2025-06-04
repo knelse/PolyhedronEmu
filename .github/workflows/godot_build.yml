@@ -197,49 +197,74 @@ jobs:
           foreach ($version in $godotVersions) {
             if ($exportSuccess) { break }
             
-            Write-Host "=== Trying Godot $($version.Version) ===" -ForegroundColor Cyan
-            
-            try {
-              # Download Godot
-              Write-Host "Downloading Godot $($version.Version)..."
-              Invoke-WebRequest -Uri $version.Url -OutFile "godot_$($version.Version).zip"
-              Expand-Archive "godot_$($version.Version).zip" -DestinationPath "godot_$($version.Version)" -Force
+                         Write-Host "=== Trying Godot $($version.Version) ===" -ForegroundColor Cyan
+             $py4godotBackupPath = "py4godot_backup_$($version.Version.Replace('.', '_').Replace('-', '_'))"
+             
+             try {
+               # Download Godot
+               Write-Host "Downloading Godot $($version.Version)..."
+               Invoke-WebRequest -Uri $version.Url -OutFile "godot_$($version.Version).zip"
+               Expand-Archive "godot_$($version.Version).zip" -DestinationPath "godot_$($version.Version)" -Force
+               
+               # Download export templates
+               Write-Host "Downloading export templates..."
+               Invoke-WebRequest -Uri $version.Templates -OutFile "templates_$($version.Version).tpz"
+               
+               # Extract and install templates
+               $templatesDir = "$env:APPDATA\Godot\export_templates\$($version.TemplateDir)"
+               New-Item -ItemType Directory -Path $templatesDir -Force | Out-Null
+               Add-Type -AssemblyName System.IO.Compression.FileSystem
+               [System.IO.Compression.ZipFile]::ExtractToDirectory("templates_$($version.Version).tpz", $templatesDir)
+               
+               # Find Godot executable
+               $godotExe = Get-ChildItem -Path "godot_$($version.Version)" -Filter "*.exe" -Recurse | Select-Object -First 1
+               
+               if (-not $godotExe) {
+                 Write-Host "❌ Godot executable not found in extracted files" -ForegroundColor Red
+                 continue
+               }
+               
+               Write-Host "Found Godot executable: $($godotExe.FullName)"
+               Write-Host "Testing Godot version..."
+               & $godotExe.FullName --version
               
-              # Download export templates
-              Write-Host "Downloading export templates..."
-              Invoke-WebRequest -Uri $version.Templates -OutFile "templates_$($version.Version).tpz"
-              
-              # Extract and install templates
-              $templatesDir = "$env:APPDATA\Godot\export_templates\$($version.TemplateDir)"
-              New-Item -ItemType Directory -Path $templatesDir -Force | Out-Null
-              Add-Type -AssemblyName System.IO.Compression.FileSystem
-              [System.IO.Compression.ZipFile]::ExtractToDirectory("templates_$($version.Version).tpz", $templatesDir)
-              
-              # Find Godot executable
-              $godotExe = Get-ChildItem -Path "godot_$($version.Version)" -Filter "*.exe" -Recurse | Select-Object -First 1
-              
-              Write-Host "Testing Godot version..."
-              & $godotExe.FullName --version
-              
-              # Try export WITHOUT py4godot first (to test if base project works)
-              Write-Host "Testing export WITHOUT py4godot..." -ForegroundColor Yellow
-              if (Test-Path "addons\py4godot") {
-                Rename-Item "addons\py4godot" "addons\py4godot.disabled"
-              }
-              
-              # Try basic export
-              $exportCmd = "& `"$($godotExe.FullName)`" --headless --export-release `"win64`" `"build\PolyhedronEmu_base.exe`" `"project.godot`""
-              Write-Host "Running: $exportCmd"
-              Invoke-Expression $exportCmd
-              
-              if (Test-Path "build\PolyhedronEmu_base.exe") {
-                Write-Host "✅ Base project export successful!" -ForegroundColor Green
-                
-                # Now try WITH py4godot
-                Write-Host "Testing export WITH py4godot..." -ForegroundColor Yellow
-                if (Test-Path "addons\py4godot.disabled") {
-                  Rename-Item "addons\py4godot.disabled" "addons\py4godot"
-                }
+                             # Try export WITHOUT py4godot first (to test if base project works)
+               Write-Host "Testing export WITHOUT py4godot..." -ForegroundColor Yellow
+               
+               if (Test-Path "addons\py4godot") {
+                 Write-Host "Moving py4godot to temporary backup location..."
+                 try {
+                   Move-Item "addons\py4godot" $py4godotBackupPath -Force
+                   Write-Host "✅ py4godot temporarily moved" -ForegroundColor Green
+                 } catch {
+                   Write-Host "⚠️ Could not move py4godot: $($_.Exception.Message)" -ForegroundColor Yellow
+                   Write-Host "Trying copy and remove instead..."
+                   Copy-Item "addons\py4godot" $py4godotBackupPath -Recurse -Force
+                   Remove-Item "addons\py4godot" -Recurse -Force
+                 }
+               }
+               
+               # Try basic export
+               $exportCmd = "& `"$($godotExe.FullName)`" --headless --export-release `"win64`" `"build\PolyhedronEmu_base.exe`" `"project.godot`""
+               Write-Host "Running: $exportCmd"
+               Invoke-Expression $exportCmd
+               
+               if (Test-Path "build\PolyhedronEmu_base.exe") {
+                 Write-Host "✅ Base project export successful!" -ForegroundColor Green
+                 
+                 # Now try WITH py4godot
+                 Write-Host "Testing export WITH py4godot..." -ForegroundColor Yellow
+                 if (Test-Path $py4godotBackupPath) {
+                   Write-Host "Restoring py4godot..."
+                   try {
+                     Move-Item $py4godotBackupPath "addons\py4godot" -Force
+                     Write-Host "✅ py4godot restored" -ForegroundColor Green
+                   } catch {
+                     Write-Host "⚠️ Could not move py4godot back: $($_.Exception.Message)" -ForegroundColor Yellow
+                     Copy-Item $py4godotBackupPath "addons\py4godot" -Recurse -Force
+                     Remove-Item $py4godotBackupPath -Recurse -Force
+                   }
+                 }
                 
                 $exportCmd = "& `"$($godotExe.FullName)`" --headless --export-release `"win64`" `"build\PolyhedronEmu.exe`" `"project.godot`""
                 Write-Host "Running: $exportCmd"
@@ -262,15 +287,21 @@ jobs:
               } else {
                 Write-Host "❌ Base project export failed" -ForegroundColor Red
               }
-            }
-            catch {
-              Write-Host "❌ Godot $($version.Version) failed: $($_.Exception.Message)" -ForegroundColor Red
-              # Restore py4godot if it was disabled
-              if (Test-Path "addons\py4godot.disabled") {
-                Rename-Item "addons\py4godot.disabled" "addons\py4godot"
-              }
-              continue
-            }
+                         }
+             catch {
+               Write-Host "❌ Godot $($version.Version) failed: $($_.Exception.Message)" -ForegroundColor Red
+               # Restore py4godot if it was backed up
+               if (Test-Path $py4godotBackupPath) {
+                 Write-Host "Restoring py4godot from backup due to error..."
+                 try {
+                   Move-Item $py4godotBackupPath "addons\py4godot" -Force
+                 } catch {
+                   Copy-Item $py4godotBackupPath "addons\py4godot" -Recurse -Force
+                   Remove-Item $py4godotBackupPath -Recurse -Force
+                 }
+               }
+               continue
+             }
           }
           
           if (-not $exportSuccess) {
