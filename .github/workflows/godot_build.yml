@@ -43,11 +43,20 @@ jobs:
           echo "✅ Windows Python distribution directory found"
           
           # Check for the specific DLL file that was failing
+          echo "Checking for pythonscript.dll..."
+          ls -la addons/py4godot/cpython-3.12.4-windows64/python/ | grep pythonscript
+          
           if [ ! -f "addons/py4godot/cpython-3.12.4-windows64/python/pythonscript.dll" ]; then
-            echo "ERROR: pythonscript.dll not found!"
-            echo "Directory contents:"
-            ls -la addons/py4godot/cpython-3.12.4-windows64/python/
-            exit 1
+            echo "pythonscript.dll not found, checking for backup file..."
+            if [ -f "addons/py4godot/cpython-3.12.4-windows64/python/~pythonscript.dll" ]; then
+              echo "Found backup file ~pythonscript.dll, copying to pythonscript.dll"
+              cp "addons/py4godot/cpython-3.12.4-windows64/python/~pythonscript.dll" "addons/py4godot/cpython-3.12.4-windows64/python/pythonscript.dll"
+            else
+              echo "ERROR: Neither pythonscript.dll nor ~pythonscript.dll found!"
+              echo "Directory contents:"
+              ls -la addons/py4godot/cpython-3.12.4-windows64/python/
+              exit 1
+            fi
           fi
           
           echo "✅ pythonscript.dll found"
@@ -72,12 +81,22 @@ jobs:
           # Check Linux distribution for headless build
           if [ -d "addons/py4godot/cpython-3.12.4-linux64" ]; then
             echo "✅ Linux Python distribution found"
+            echo "Checking for pythonscript.so..."
+            ls -la addons/py4godot/cpython-3.12.4-linux64/python/bin/ | grep pythonscript
+            
             if [ -f "addons/py4godot/cpython-3.12.4-linux64/python/bin/pythonscript.so" ]; then
               echo "✅ Linux pythonscript.so found"
               chmod +x addons/py4godot/cpython-3.12.4-linux64/python/bin/pythonscript.so
             else
-              echo "⚠️  Linux pythonscript.so not found, listing contents:"
-              ls -la addons/py4godot/cpython-3.12.4-linux64/python/bin/ 2>/dev/null || echo "bin directory not found"
+              echo "pythonscript.so not found, checking for backup file..."
+              if [ -f "addons/py4godot/cpython-3.12.4-linux64/python/bin/~pythonscript.so" ]; then
+                echo "Found backup file ~pythonscript.so, copying to pythonscript.so"
+                cp "addons/py4godot/cpython-3.12.4-linux64/python/bin/~pythonscript.so" "addons/py4godot/cpython-3.12.4-linux64/python/bin/pythonscript.so"
+                chmod +x addons/py4godot/cpython-3.12.4-linux64/python/bin/pythonscript.so
+              else
+                echo "⚠️  Neither pythonscript.so nor ~pythonscript.so found, listing contents:"
+                ls -la addons/py4godot/cpython-3.12.4-linux64/python/bin/ 2>/dev/null || echo "bin directory not found"
+              fi
             fi
           else
             echo "⚠️  Linux Python distribution not found"
