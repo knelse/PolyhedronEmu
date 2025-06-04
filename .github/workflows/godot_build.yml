@@ -220,30 +220,6 @@ jobs:
           find addons/py4godot -type f -exec chmod 644 {} \;
           find addons/py4godot -type d -exec chmod 755 {} \;
 
-      - name: Setup Wine and rcedit
-        id: wine_install
-        run: |
-          echo "=== Installing Wine and rcedit ==="
-          
-          # Install Wine
-          sudo apt update
-          sudo apt install -y wine64
-          
-          # Download and setup rcedit
-          wget -O rcedit.exe https://github.com/electron/rcedit/releases/download/v1.1.1/rcedit-x64.exe
-          chmod +x rcedit.exe
-          
-          # Test Wine installation
-          wine64 --version
-          
-          # Set Wine path for the export action
-          echo "WINE_PATH=$(which wine64)" >> $GITHUB_OUTPUT
-          echo "RCEDIT_PATH=$(pwd)/rcedit.exe" >> $GITHUB_OUTPUT
-          
-          echo "✅ Wine and rcedit setup complete"
-          echo "Wine path: $(which wine64)"
-          echo "rcedit path: $(pwd)/rcedit.exe"
-
       - name: Export artifacts
         id: export
         uses: firebelley/godot-export@v6.0.0
@@ -251,7 +227,6 @@ jobs:
           godot_executable_download_url: https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
           godot_export_templates_download_url: https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
           relative_project_path: ./
-          wine_path: ${{ steps.wine_install.outputs.WINE_PATH }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
