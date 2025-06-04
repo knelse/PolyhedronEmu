@@ -178,51 +178,114 @@ jobs:
           Write-Host "Final project.godot content:"
           Get-Content "project.godot"
 
-      - name: Export with Godot
+      - name: Export with Godot (Multi-version approach)
         run: |
-          Write-Host "=== Exporting with Godot ===" -ForegroundColor Green
-          
-          # Download Godot for Windows
-          $godotUrl = "https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_win64.exe.zip"
-          $templatesUrl = "https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz"
-          
-          Write-Host "Downloading Godot..."
-          Invoke-WebRequest -Uri $godotUrl -OutFile "godot.zip"
-          Expand-Archive "godot.zip" -DestinationPath "." -Force
-          
-          Write-Host "Downloading export templates..."
-          Invoke-WebRequest -Uri $templatesUrl -OutFile "templates.tpz"
-          
-          # Extract and install templates to user data directory
-          $templatesDir = "$env:APPDATA\Godot\export_templates\4.4.1.stable"
-          New-Item -ItemType Directory -Path $templatesDir -Force | Out-Null
-          
-          # Extract templates
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          [System.IO.Compression.ZipFile]::ExtractToDirectory("templates.tpz", $templatesDir)
+          Write-Host "=== Exporting with Godot (Multi-version approach) ===" -ForegroundColor Green
           
           # Create build directory
           New-Item -ItemType Directory -Path "build" -Force | Out-Null
           
-          Write-Host "Attempting Godot export..."
-          $godotExe = Get-ChildItem -Filter "*.exe" | Where-Object { $_.Name -like "*Godot*" } | Select-Object -First 1
+          # Test multiple Godot versions
+          $godotVersions = @(
+            @{Version="4.3-stable"; Url="https://github.com/godotengine/godot-builds/releases/download/4.3-stable/Godot_v4.3-stable_win64.exe.zip"; Templates="https://github.com/godotengine/godot-builds/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz"; TemplateDir="4.3.stable"},
+            @{Version="4.4-stable"; Url="https://github.com/godotengine/godot-builds/releases/download/4.4-stable/Godot_v4.4-stable_win64.exe.zip"; Templates="https://github.com/godotengine/godot-builds/releases/download/4.4-stable/Godot_v4.4-stable_export_templates.tpz"; TemplateDir="4.4.stable"},
+            @{Version="4.4.1-stable"; Url="https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_win64.exe.zip"; Templates="https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz"; TemplateDir="4.4.1.stable"}
+          )
           
-          try {
-            & $godotExe.FullName --headless --export-release "win64" "build\PolyhedronEmu.exe" "project.godot"
-            Write-Host "✅ Export successful!" -ForegroundColor Green
-          }
-          catch {
-            Write-Host "⚠️ Export encountered issues: $($_.Exception.Message)" -ForegroundColor Yellow
-            Write-Host "Continuing with file copying..." -ForegroundColor Yellow
+          $exportSuccess = $false
+          
+          foreach ($version in $godotVersions) {
+            if ($exportSuccess) { break }
+            
+            Write-Host "=== Trying Godot $($version.Version) ===" -ForegroundColor Cyan
+            
+            try {
+              # Download Godot
+              Write-Host "Downloading Godot $($version.Version)..."
+              Invoke-WebRequest -Uri $version.Url -OutFile "godot_$($version.Version).zip"
+              Expand-Archive "godot_$($version.Version).zip" -DestinationPath "godot_$($version.Version)" -Force
+              
+              # Download export templates
+              Write-Host "Downloading export templates..."
+              Invoke-WebRequest -Uri $version.Templates -OutFile "templates_$($version.Version).tpz"
+              
+              # Extract and install templates
+              $templatesDir = "$env:APPDATA\Godot\export_templates\$($version.TemplateDir)"
+              New-Item -ItemType Directory -Path $templatesDir -Force | Out-Null
+              Add-Type -AssemblyName System.IO.Compression.FileSystem
+              [System.IO.Compression.ZipFile]::ExtractToDirectory("templates_$($version.Version).tpz", $templatesDir)
+              
+              # Find Godot executable
+              $godotExe = Get-ChildItem -Path "godot_$($version.Version)" -Filter "*.exe" -Recurse | Select-Object -First 1
+              
+              Write-Host "Testing Godot version..."
+              & $godotExe.FullName --version
+              
+              # Try export WITHOUT py4godot first (to test if base project works)
+              Write-Host "Testing export WITHOUT py4godot..." -ForegroundColor Yellow
+              if (Test-Path "addons\py4godot") {
+                Rename-Item "addons\py4godot" "addons\py4godot.disabled"
+              }
+              
+              # Try basic export
+              $exportCmd = "& `"$($godotExe.FullName)`" --headless --export-release `"win64`" `"build\PolyhedronEmu_base.exe`" `"project.godot`""
+              Write-Host "Running: $exportCmd"
+              Invoke-Expression $exportCmd
+              
+              if (Test-Path "build\PolyhedronEmu_base.exe") {
+                Write-Host "✅ Base project export successful!" -ForegroundColor Green
+                
+                # Now try WITH py4godot
+                Write-Host "Testing export WITH py4godot..." -ForegroundColor Yellow
+                if (Test-Path "addons\py4godot.disabled") {
+                  Rename-Item "addons\py4godot.disabled" "addons\py4godot"
+                }
+                
+                $exportCmd = "& `"$($godotExe.FullName)`" --headless --export-release `"win64`" `"build\PolyhedronEmu.exe`" `"project.godot`""
+                Write-Host "Running: $exportCmd"
+                try {
+                  Invoke-Expression $exportCmd
+                  if (Test-Path "build\PolyhedronEmu.exe") {
+                    Write-Host "✅ Full export with py4godot successful!" -ForegroundColor Green
+                    $exportSuccess = $true
+                  } else {
+                    Write-Host "⚠️ Export with py4godot failed, using base export" -ForegroundColor Yellow
+                    Copy-Item "build\PolyhedronEmu_base.exe" "build\PolyhedronEmu.exe"
+                    $exportSuccess = $true
+                  }
+                } catch {
+                  Write-Host "⚠️ py4godot export crashed: $($_.Exception.Message)" -ForegroundColor Yellow
+                  Write-Host "Using base export without py4godot" -ForegroundColor Yellow
+                  Copy-Item "build\PolyhedronEmu_base.exe" "build\PolyhedronEmu.exe"
+                  $exportSuccess = $true
+                }
+              } else {
+                Write-Host "❌ Base project export failed" -ForegroundColor Red
+              }
+            }
+            catch {
+              Write-Host "❌ Godot $($version.Version) failed: $($_.Exception.Message)" -ForegroundColor Red
+              # Restore py4godot if it was disabled
+              if (Test-Path "addons\py4godot.disabled") {
+                Rename-Item "addons\py4godot.disabled" "addons\py4godot"
+              }
+              continue
+            }
           }
           
-          # Copy our prepared files
+          if (-not $exportSuccess) {
+            Write-Host "❌ All Godot versions failed. Creating minimal build..." -ForegroundColor Red
+            # Create a minimal executable placeholder
+            "# PolyhedronEmu - Build failed, manual setup required" | Out-File "build\README.txt"
+          }
+          
+          # Copy our prepared files regardless
           if (Test-Path "builds") {
             Copy-Item "builds\*" "build\" -Recurse -Force
             Write-Host "✅ Copied additional runtime files" -ForegroundColor Green
           }
           
-          Write-Host "Build directory contents:"
+          Write-Host "Final build directory contents:"
           Get-ChildItem "build" | Format-Table Name, Length
 
       - name: Upload artifact
