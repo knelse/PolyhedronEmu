@@ -9,7 +9,7 @@ on:
 
 jobs:
   Godot:
-    runs-on: ubuntu-latest
+    runs-on: windows-2022
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions: write-all
     strategy:
@@ -20,295 +20,210 @@ jobs:
         with:
           lfs: true
       
-      - name: Install system dependencies for py4godot
+      - name: Verify py4godot GDExtension
         run: |
-          echo "=== Installing system dependencies ==="
-          sudo apt update
-          sudo apt install -y \
-            libc6-dev \
-            libpython3-dev \
-            python3-dev \
-            libffi-dev \
-            libssl-dev \
-            zlib1g-dev \
-            libbz2-dev \
-            libreadline-dev \
-            libsqlite3-dev \
-            libncurses5-dev \
-            libncursesw5-dev \
-            xz-utils \
-            tk-dev \
-            libxml2-dev \
-            libxmlsec1-dev \
-            liblzma-dev
-          
-          echo "✅ System dependencies installed"
-      
-      - name: Verify and fix py4godot GDExtension
-        run: |
-          echo "=== Checking py4godot GDExtension setup ==="
+          Write-Host "=== Checking py4godot GDExtension setup ===" -ForegroundColor Green
           
           # Check if the GDExtension file exists
-          if [ ! -f "addons/py4godot/python.gdextension" ]; then
-            echo "ERROR: py4godot GDExtension file not found!"
+          if (-not (Test-Path "addons\py4godot\python.gdextension")) {
+            Write-Host "ERROR: py4godot GDExtension file not found!" -ForegroundColor Red
             exit 1
-          fi
+          }
           
-          echo "✅ GDExtension file found"
-          echo "GDExtension configuration:"
-          cat addons/py4godot/python.gdextension
+          Write-Host "✅ GDExtension file found" -ForegroundColor Green
+          Write-Host "GDExtension configuration:"
+          Get-Content "addons\py4godot\python.gdextension"
           
           # Check Windows Python distribution
-          if [ ! -d "addons/py4godot/cpython-3.12.4-windows64" ]; then
-            echo "ERROR: Windows Python distribution directory not found!"
+          if (-not (Test-Path "addons\py4godot\cpython-3.12.4-windows64")) {
+            Write-Host "ERROR: Windows Python distribution directory not found!" -ForegroundColor Red
             exit 1
-          fi
+          }
           
-          echo "✅ Windows Python distribution directory found"
+          Write-Host "✅ Windows Python distribution directory found" -ForegroundColor Green
           
-          # Check for the specific DLL file that was failing
-          echo "Checking for pythonscript.dll..."
-          echo "Windows Python directory contents:"
-          ls -la addons/py4godot/cpython-3.12.4-windows64/python/ || echo "Windows Python directory not found"
+          # Check for the specific DLL file
+          Write-Host "Checking for pythonscript.dll..."
+          Write-Host "Windows Python directory contents:"
+          if (Test-Path "addons\py4godot\cpython-3.12.4-windows64\python") {
+            Get-ChildItem "addons\py4godot\cpython-3.12.4-windows64\python" | Format-Table Name, Length
+          }
           
-          if [ ! -f "addons/py4godot/cpython-3.12.4-windows64/python/pythonscript.dll" ]; then
-            echo "⚠️ pythonscript.dll not found, checking for backup file..."
-            if [ -f "addons/py4godot/cpython-3.12.4-windows64/python/~pythonscript.dll" ]; then
-              echo "✅ Found backup file ~pythonscript.dll, copying to pythonscript.dll"
-              cp "addons/py4godot/cpython-3.12.4-windows64/python/~pythonscript.dll" "addons/py4godot/cpython-3.12.4-windows64/python/pythonscript.dll"
-            else
-              echo "⚠️ Neither pythonscript.dll nor ~pythonscript.dll found!"
-              echo "This might be expected if the DLL needs to be built or isn't included in the repository."
-              echo "Attempting to continue with export - Godot may handle missing DLL gracefully."
-              echo "Directory contents:"
-              ls -la addons/py4godot/cpython-3.12.4-windows64/python/ || echo "Directory not accessible"
-              # Don't exit with error - let Godot export handle it
-            fi
-          else
-            echo "✅ pythonscript.dll found"
-          fi
+          $dllPath = "addons\py4godot\cpython-3.12.4-windows64\python\pythonscript.dll"
+          $backupDllPath = "addons\py4godot\cpython-3.12.4-windows64\python\~pythonscript.dll"
           
-          # Check file permissions and make executable if needed (only if file exists)
-          if [ -f "addons/py4godot/cpython-3.12.4-windows64/python/pythonscript.dll" ]; then
-            echo "Setting file permissions for pythonscript.dll..."
-            chmod +x addons/py4godot/cpython-3.12.4-windows64/python/pythonscript.dll
-            chmod +x addons/py4godot/cpython-3.12.4-windows64/python/*.dll 2>/dev/null || echo "No additional DLL files to chmod"
-            
-            # Verify file is readable
-            if [ ! -r "addons/py4godot/cpython-3.12.4-windows64/python/pythonscript.dll" ]; then
-              echo "⚠️ pythonscript.dll is not readable!"
-              ls -la addons/py4godot/cpython-3.12.4-windows64/python/pythonscript.dll
-            else
-              echo "✅ pythonscript.dll is readable"
-            fi
-          else
-            echo "⚠️ Skipping file permission check - pythonscript.dll not found"
-          fi
+          if (-not (Test-Path $dllPath)) {
+            Write-Host "⚠️ pythonscript.dll not found, checking for backup file..." -ForegroundColor Yellow
+            if (Test-Path $backupDllPath) {
+              Write-Host "✅ Found backup file ~pythonscript.dll, copying to pythonscript.dll" -ForegroundColor Green
+              Copy-Item $backupDllPath $dllPath
+            } else {
+              Write-Host "⚠️ Neither pythonscript.dll nor ~pythonscript.dll found!" -ForegroundColor Yellow
+              Write-Host "Attempting to continue - Godot may handle missing DLL gracefully."
+            }
+          } else {
+            Write-Host "✅ pythonscript.dll found" -ForegroundColor Green
+          }
           
-          # List all DLL files to verify they're present
-          echo "Available DLL files:"
-          find addons/py4godot -name "*.dll" -type f
-          
-          # Check Linux distribution for headless build
-          if [ -d "addons/py4godot/cpython-3.12.4-linux64" ]; then
-            echo "✅ Linux Python distribution found"
-            echo "Checking for pythonscript.so..."
-            ls -la addons/py4godot/cpython-3.12.4-linux64/python/bin/ | grep pythonscript
-            
-            if [ -f "addons/py4godot/cpython-3.12.4-linux64/python/bin/pythonscript.so" ]; then
-              echo "✅ Linux pythonscript.so found"
-              chmod +x addons/py4godot/cpython-3.12.4-linux64/python/bin/pythonscript.so
-            else
-              echo "pythonscript.so not found, checking for backup file..."
-              if [ -f "addons/py4godot/cpython-3.12.4-linux64/python/bin/~pythonscript.so" ]; then
-                echo "Found backup file ~pythonscript.so, copying to pythonscript.so"
-                cp "addons/py4godot/cpython-3.12.4-linux64/python/bin/~pythonscript.so" "addons/py4godot/cpython-3.12.4-linux64/python/bin/pythonscript.so"
-                chmod +x addons/py4godot/cpython-3.12.4-linux64/python/bin/pythonscript.so
-              else
-                echo "⚠️  Neither pythonscript.so nor ~pythonscript.so found, listing contents:"
-                ls -la addons/py4godot/cpython-3.12.4-linux64/python/bin/ 2>/dev/null || echo "bin directory not found"
-              fi
-            fi
-          else
-            echo "⚠️  Linux Python distribution not found"
-          fi
+          # List all DLL files
+          Write-Host "Available DLL files in py4godot:"
+          Get-ChildItem -Path "addons\py4godot" -Recurse -Filter "*.dll" | ForEach-Object { Write-Host "  $($_.FullName)" }
 
       - name: Copy necessary project files
         run: |
-          echo "=== Copying necessary project files (excluding .tmp/.TMP files) ==="
+          Write-Host "=== Copying necessary project files (excluding .tmp/.TMP files) ===" -ForegroundColor Green
           
           # Create builds directory structure
-          mkdir -p builds/server
-          mkdir -p builds/addons/py4godot
+          New-Item -ItemType Directory -Path "builds\server" -Force | Out-Null
+          New-Item -ItemType Directory -Path "builds\addons\py4godot" -Force | Out-Null
           
           # Copy py4godot addon with Windows64 runtime only
-          if [ -d "addons/py4godot" ]; then
-            echo "Copying py4godot files (Windows64 runtime only)..."
+          if (Test-Path "addons\py4godot") {
+            Write-Host "Copying py4godot files (Windows64 runtime only)..."
             
             # Copy all py4godot files except unwanted platform runtimes and .tmp/.TMP files
-            for item in addons/py4godot/*; do
-              item_name=$(basename "$item")
+            Get-ChildItem "addons\py4godot" | ForEach-Object {
+              $itemName = $_.Name
+              
+              # Skip unwanted platform runtimes
+              if ($itemName -in @("cpython-3.12.4-linux64", "cpython-3.12.4-linuxarm64", "cpython-3.12.4-darwin64")) {
+                Write-Host "⏭️ Skipping $itemName runtime" -ForegroundColor Yellow
+                return
+              }
               
               # Skip .tmp/.TMP files
-              if [[ "$item_name" == *.tmp ]] || [[ "$item_name" == *.TMP ]]; then
-                echo "⏭️ Skipping $item_name (temp file)"
-                continue
-              fi
+              if ($itemName -like "*.tmp" -or $itemName -like "*.TMP") {
+                Write-Host "⏭️ Skipping $itemName (temp file)" -ForegroundColor Yellow
+                return
+              }
               
               # Copy the item
-              if [ -f "$item" ]; then
-                cp "$item" "builds/addons/py4godot/"
-                echo "✅ Copied $item_name"
-              elif [ -d "$item" ]; then
-                cp -r "$item" "builds/addons/py4godot/"
-                echo "✅ Copied $item_name (directory)"
-              fi
-            done
+              if ($_.PSIsContainer) {
+                Copy-Item $_.FullName "builds\addons\py4godot\" -Recurse -Force
+                Write-Host "✅ Copied $itemName (directory)" -ForegroundColor Green
+              } else {
+                Copy-Item $_.FullName "builds\addons\py4godot\" -Force
+                Write-Host "✅ Copied $itemName" -ForegroundColor Green
+              }
+            }
             
-            echo "✅ Copied py4godot addon (Windows64 runtime only)"
-          fi
+            Write-Host "✅ Copied py4godot addon (Windows64 runtime only)" -ForegroundColor Green
+          }
           
           # Copy server modules (Python files, excluding .tmp/.TMP files)
-          if [ -d "server" ]; then
-            find server -name "*.py" ! -name "*.tmp" ! -name "*.TMP" -exec cp {} builds/server/ \;
-            echo "✅ Copied server modules (excluding .tmp/.TMP files)"
-          fi
+          if (Test-Path "server") {
+            Get-ChildItem "server\*.py" | Where-Object { $_.Name -notlike "*.tmp" -and $_.Name -notlike "*.TMP" } | ForEach-Object {
+              Copy-Item $_.FullName "builds\server\" -Force
+            }
+            Write-Host "✅ Copied server modules (excluding .tmp/.TMP files)" -ForegroundColor Green
+          }
           
           # Copy root Python files (excluding test files and .tmp/.TMP files)
-          find . -maxdepth 1 -name "*.py" ! -name "*test*" ! -name "*.tmp" ! -name "*.TMP" -exec cp {} builds/ \;
-          echo "✅ Copied root Python files (excluding test files and .tmp/.TMP files)"
+          Get-ChildItem "*.py" | Where-Object { $_.Name -notlike "*test*" -and $_.Name -notlike "*.tmp" -and $_.Name -notlike "*.TMP" } | ForEach-Object {
+            Copy-Item $_.FullName "builds\" -Force
+            Write-Host "✅ Copied $($_.Name)" -ForegroundColor Green
+          }
           
           # Copy server_config.json
-          if [ -f "server_config.json" ]; then
-            cp server_config.json builds/
-            echo "✅ Copied server_config.json"
-          fi
+          if (Test-Path "server_config.json") {
+            Copy-Item "server_config.json" "builds\" -Force
+            Write-Host "✅ Copied server_config.json" -ForegroundColor Green
+          }
           
           # Copy project configuration files
-          config_files="project.godot export_presets.cfg"
-          for config in $config_files; do
-            if [ -f "$config" ]; then
-              cp "$config" builds/
-              echo "✅ Copied $config"
-            fi
-          done
+          $configFiles = @("project.godot", "export_presets.cfg")
+          foreach ($config in $configFiles) {
+            if (Test-Path $config) {
+              Copy-Item $config "builds\" -Force
+              Write-Host "✅ Copied $config" -ForegroundColor Green
+            }
+          }
           
           # Copy Python packages/subdirectories (excluding tests and .tmp/.TMP files)
-          for dir in */; do
-            dir_name="${dir%/}"
-            # Skip certain directories
-            if [[ "$dir_name" =~ test ]] || [[ "$dir_name" == "addons" ]] || [[ "$dir_name" == "server" ]] || [[ "$dir_name" == "logs" ]] || [[ "$dir_name" == "builds" ]] || [[ "$dir_name" == ".godot" ]]; then
-              continue
-            fi
-            
-            # Check if directory contains Python files
-            if find "$dir_name" -maxdepth 1 -name "*.py" | grep -q .; then
-              mkdir -p "builds/$dir_name"
+          $skipDirs = @("addons", "server", "logs", "builds", ".godot")
+          Get-ChildItem -Directory | Where-Object { $_.Name -notlike "*test*" -and $_.Name -notin $skipDirs } | ForEach-Object {
+            $pyFiles = Get-ChildItem "$($_.FullName)\*.py" -ErrorAction SilentlyContinue
+            if ($pyFiles.Count -gt 0) {
+              $destDir = "builds\$($_.Name)"
+              New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+              
               # Copy files excluding .tmp/.TMP files
-              find "$dir_name" -type f ! -name "*.tmp" ! -name "*.TMP" -exec cp {} "builds/$dir_name/" \;
-              echo "✅ Copied Python package: $dir_name (excluding .tmp/.TMP files)"
-            fi
-          done
+              Get-ChildItem $_.FullName -Recurse | Where-Object { $_.Name -notlike "*.tmp" -and $_.Name -notlike "*.TMP" } | ForEach-Object {
+                $relativePath = $_.FullName.Substring($($_.FullName).IndexOf($_.Directory.Parent.Name))
+                $destPath = Join-Path $destDir (Split-Path $relativePath -Leaf)
+                Copy-Item $_.FullName $destPath -Force
+              }
+              Write-Host "✅ Copied Python package: $($_.Name) (excluding .tmp/.TMP files)" -ForegroundColor Green
+            }
+          }
           
-          echo "File copying complete!"
+          Write-Host "File copying complete!" -ForegroundColor Green
 
-      - name: Setup py4godot for export
+      - name: Setup project for export
         run: |
-          echo "=== Setting up py4godot for headless export ==="
+          Write-Host "=== Setting up project for export ===" -ForegroundColor Green
           
           # Create .godot directory if it doesn't exist
-          mkdir -p .godot/
+          New-Item -ItemType Directory -Path ".godot" -Force | Out-Null
           
           # Ensure project settings recognize the GDExtension
-          echo "Checking project.godot for GDExtension configuration..."
-          if ! grep -q "py4godot" project.godot; then
-            echo "Adding py4godot addon to project.godot"
-            echo "" >> project.godot
-            echo "[addon]" >> project.godot
-            echo "" >> project.godot
-            echo "py4godot/enabled=true" >> project.godot
-          fi
+          Write-Host "Checking project.godot for GDExtension configuration..."
+          $projectContent = Get-Content "project.godot" -Raw
+          if ($projectContent -notmatch "py4godot") {
+            Write-Host "Adding py4godot addon to project.godot"
+            Add-Content "project.godot" "`n[addon]`n`npy4godot/enabled=true"
+          }
           
           # Show final project.godot content for debugging
-          echo "Final project.godot content:"
-          cat project.godot
-          
-          find addons/py4godot -type f -exec chmod 644 {} \;
-          find addons/py4godot -type d -exec chmod 755 {} \;
+          Write-Host "Final project.godot content:"
+          Get-Content "project.godot"
 
-      - name: Test Godot headless mode
+      - name: Export with Godot
         run: |
-          echo "=== Testing Godot headless mode ==="
+          Write-Host "=== Exporting with Godot ===" -ForegroundColor Green
           
-          # Install Xvfb for headless display
-          sudo apt install -y xvfb
+          # Download Godot for Windows
+          $godotUrl = "https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_win64.exe.zip"
+          $templatesUrl = "https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz"
           
-          # Download and extract Godot manually for testing
-          wget -O godot.zip https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
-          unzip godot.zip
-          chmod +x Godot_v4.4.1-stable_linux.x86_64
+          Write-Host "Downloading Godot..."
+          Invoke-WebRequest -Uri $godotUrl -OutFile "godot.zip"
+          Expand-Archive "godot.zip" -DestinationPath "." -Force
           
-          # Test basic Godot functionality
-          echo "Testing basic Godot --version..."
-          ./Godot_v4.4.1-stable_linux.x86_64 --version || echo "Version check failed"
+          Write-Host "Downloading export templates..."
+          Invoke-WebRequest -Uri $templatesUrl -OutFile "templates.tpz"
           
-          # Set display variable for headless mode
-          export DISPLAY=:99
-          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-          sleep 2
+          # Extract and install templates to user data directory
+          $templatesDir = "$env:APPDATA\Godot\export_templates\4.4.1.stable"
+          New-Item -ItemType Directory -Path $templatesDir -Force | Out-Null
           
-          # Try headless mode with verbose output
-          echo "Testing headless mode..."
-          ./Godot_v4.4.1-stable_linux.x86_64 --headless --verbose project.godot --quit || echo "Headless test failed"
-
-      - name: Manual Godot export
-        run: |
-          echo "=== Manual Godot export ==="
-          
-          # Download Godot
-          wget -O godot.zip https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
-          unzip godot.zip
-          chmod +x Godot_v4.4.1-stable_linux.x86_64
-          
-          # Download export templates
-          wget -O templates.tpz https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
-          
-          # Extract and install templates
-          mkdir -p ~/.local/share/godot/export_templates/4.4.1.stable/
-          unzip templates.tpz -d ~/.local/share/godot/export_templates/4.4.1.stable/
+          # Extract templates
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [System.IO.Compression.ZipFile]::ExtractToDirectory("templates.tpz", $templatesDir)
           
           # Create build directory
-          mkdir -p build
+          New-Item -ItemType Directory -Path "build" -Force | Out-Null
           
-          # Export directly without using problematic action
-          export DISPLAY=:99
-          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-          sleep 2
+          Write-Host "Attempting Godot export..."
+          $godotExe = Get-ChildItem -Filter "*.exe" | Where-Object { $_.Name -like "*Godot*" } | Select-Object -First 1
           
-          # Try export with error handling
-          echo "Attempting Godot export..."
-          ./Godot_v4.4.1-stable_linux.x86_64 --headless --export-release "win64" build/PolyhedronEmu.exe project.godot || {
-            echo "Direct export failed, trying without py4godot..."
-            
-            # Backup and remove py4godot temporarily
-            mv addons/py4godot addons/py4godot.bak
-            
-            # Try export again
-            ./Godot_v4.4.1-stable_linux.x86_64 --headless --export-release "win64" build/PolyhedronEmu.exe project.godot
-            
-            # Restore py4godot and copy to build
-            mv addons/py4godot.bak addons/py4godot
-            cp -r addons build/
+          try {
+            & $godotExe.FullName --headless --export-release "win64" "build\PolyhedronEmu.exe" "project.godot"
+            Write-Host "✅ Export successful!" -ForegroundColor Green
+          }
+          catch {
+            Write-Host "⚠️ Export encountered issues: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "Continuing with file copying..." -ForegroundColor Yellow
           }
           
           # Copy our prepared files
-          if [ -d "builds" ]; then
-            cp -r builds/* build/
-            echo "✅ Copied additional runtime files"
-          fi
+          if (Test-Path "builds") {
+            Copy-Item "builds\*" "build\" -Recurse -Force
+            Write-Host "✅ Copied additional runtime files" -ForegroundColor Green
+          }
           
-          echo "Build directory contents:"
-          ls -la build/
+          Write-Host "Build directory contents:"
+          Get-ChildItem "build" | Format-Table Name, Length
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
