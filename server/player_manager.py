@@ -11,7 +11,7 @@ class PlayerManager:
         self._index_lock = threading.Lock()
         self._active_players = {}  # player_index -> connection info
         self._players_lock = threading.Lock()
-        self._available_indices = set()  # Set of indices that can be reused
+        self._available_indices = set()
 
     def get_next_player_index(self) -> Optional[int]:
         """

@@ -1,4 +1,3 @@
-# file: main_server_node.py
 from py4godot.classes import gdclass
 from py4godot.classes.Node3D import Node3D
 import socket

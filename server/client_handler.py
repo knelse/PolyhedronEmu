@@ -52,14 +52,12 @@ class ClientHandler:
                 self.player_manager.add_player(player_index, address)
                 self.state_manager.add_client(player_index)
 
-                # Send initialization packet to client
                 try:
                     client_socket.send(INIT_PACKET)
                     msg = (f"Sent init packet to player "
                            f"0x{player_index:04X}: {INIT_PACKET.hex()}")
                     self.logger.debug(msg)
 
-                    # Transition client to INIT_READY_FOR_INITIAL_DATA state
                     success = self.state_manager.transition_to_init_ready(
                         player_index)
                     if success:
@@ -135,11 +133,9 @@ class ClientHandler:
                 self.player_manager.remove_player(player_index)
                 self.state_manager.remove_client(player_index)
 
-                # Clean up the client's Node3D
                 with self.nodes_lock:
                     if player_index in self.client_nodes:
                         client_node = self.client_nodes[player_index]
-                        # Safely remove from scene tree
                         client_node.call_deferred("queue_free")
                         del self.client_nodes[player_index]
                         msg = (f"Cleaned up node for player "
@@ -157,7 +153,6 @@ class ClientHandler:
         """Stop handling new connections and clean up all client nodes."""
         self.is_running = False
 
-        # Clean up all remaining client nodes
         with self.nodes_lock:
             for player_index, client_node in self.client_nodes.items():
                 try:

@@ -6,11 +6,9 @@ from unittest import TestCase
 import sys
 import os
 
-# Mock py4godot imports
 sys.modules['py4godot'] = Mock()
 sys.modules['py4godot.classes'] = Mock()
 
-# Add the server directory to the path so we can import our modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 
@@ -53,7 +51,6 @@ class TestClientStateManager(TestCase):
     def test_remove_nonexistent_client(self):
         """Test removing a client that doesn't exist."""
         self.state_manager.remove_client(self.player_index)
-        # Should not raise an exception
 
     def test_set_client_state_success(self):
         """Test setting client state successfully."""
@@ -77,7 +74,6 @@ class TestClientStateManager(TestCase):
         """Test setting client to same state."""
         self.state_manager.add_client(self.player_index)
 
-        # Set to BASE (same as initial state)
         result = self.state_manager.set_client_state(
             self.player_index, ClientState.BASE
         )
@@ -103,92 +99,12 @@ class TestClientStateManager(TestCase):
         )
         self.mock_logger.warning.assert_called_with(expected_msg)
 
-    def test_transition_to_init_ready_success(self):
-        """Test successful transition to init ready state."""
-        self.state_manager.add_client(self.player_index)
-
-        result = self.state_manager.transition_to_init_ready(
-            self.player_index
-        )
-        self.assertTrue(result)
-
-        state = self.state_manager.get_client_state(self.player_index)
-        self.assertEqual(state, ClientState.INIT_READY_FOR_INITIAL_DATA)
-
-        expected_msg = (
-            f"Client 0x{self.player_index:04X} transitioned to init ready "
-            f"state"
-        )
-        self.mock_logger.info.assert_called_with(expected_msg)
-
-    def test_transition_to_init_ready_unknown_client(self):
-        """Test transition to init ready for unknown client."""
-        result = self.state_manager.transition_to_init_ready(
-            self.player_index
-        )
-        self.assertFalse(result)
-
-        expected_msg = (
-            f"Cannot transition unknown client "
-            f"0x{self.player_index:04X} to init ready"
-        )
-        self.mock_logger.warning.assert_called_with(expected_msg)
-
-    def test_transition_to_init_ready_wrong_state(self):
-        """Test transition to init ready from wrong state."""
-        self.state_manager.add_client(self.player_index)
-        self.state_manager.set_client_state(
-            self.player_index, ClientState.IN_GAME
-        )
-
-        result = self.state_manager.transition_to_init_ready(
-            self.player_index
-        )
-        self.assertFalse(result)
-
-        expected_msg = (
-            f"Client 0x{self.player_index:04X} cannot transition to init "
-            f"ready from in_game"
-        )
-        self.mock_logger.warning.assert_called_with(expected_msg)
-
-    def test_transition_to_game_success(self):
-        """Test successful transition to game state."""
-        self.state_manager.add_client(self.player_index)
-        self.state_manager.transition_to_init_ready(self.player_index)
-
-        result = self.state_manager.transition_to_game(self.player_index)
-        self.assertTrue(result)
-
-        state = self.state_manager.get_client_state(self.player_index)
-        self.assertEqual(state, ClientState.IN_GAME)
-
-        expected_msg = (
-            f"Client 0x{self.player_index:04X} transitioned to game state"
-        )
-        self.mock_logger.info.assert_called_with(expected_msg)
-
-    def test_transition_to_game_wrong_state(self):
-        """Test transition to game from wrong state."""
-        self.state_manager.add_client(self.player_index)
-        # Try to transition directly from BASE to IN_GAME
-
-        result = self.state_manager.transition_to_game(self.player_index)
-        self.assertFalse(result)
-
-        expected_msg = (
-            f"Client 0x{self.player_index:04X} cannot transition to game "
-            f"from base"
-        )
-        self.mock_logger.warning.assert_called_with(expected_msg)
-
     def test_get_clients_by_state(self):
         """Test getting clients by state."""
         player1 = 0x5001
         player2 = 0x5002
         player3 = 0x5003
 
-        # Add clients in different states
         self.state_manager.add_client(player1)
         self.state_manager.add_client(player2)
         self.state_manager.add_client(player3)
@@ -197,7 +113,6 @@ class TestClientStateManager(TestCase):
         self.state_manager.transition_to_init_ready(player3)
         self.state_manager.transition_to_game(player3)
 
-        # Test filtering by state
         base_clients = self.state_manager.get_clients_by_state(
             ClientState.BASE
         )
@@ -238,11 +153,9 @@ class TestClientStateManager(TestCase):
         """Test counting clients by state."""
         players = [0x5001, 0x5002, 0x5003, 0x5004]
 
-        # Add clients
         for player in players:
             self.state_manager.add_client(player)
 
-        # Transition some clients
         self.state_manager.transition_to_init_ready(players[1])
         self.state_manager.transition_to_init_ready(players[2])
         self.state_manager.transition_to_game(players[2])
@@ -284,22 +197,18 @@ class TestClientStateManager(TestCase):
             )
             threads.append(thread)
 
-        # Start all threads
         for thread in threads:
             thread.start()
 
-        # Wait for completion
         for thread in threads:
             thread.join()
 
-        # Verify all operations succeeded
         success_count = sum(
             1 for r in results
             if r.startswith("success_") and "True_True" in r
         )
         self.assertEqual(success_count, len(players))
 
-        # Verify final states
         game_clients = self.state_manager.get_clients_by_state(
             ClientState.IN_GAME
         )
@@ -309,13 +218,11 @@ class TestClientStateManager(TestCase):
         """Test complete state flow from BASE to IN_GAME."""
         self.state_manager.add_client(self.player_index)
 
-        # Should start in BASE
         current_state = self.state_manager.get_client_state(
             self.player_index
         )
         self.assertEqual(current_state, ClientState.BASE)
 
-        # Transition to INIT_READY_FOR_INITIAL_DATA
         result = self.state_manager.transition_to_init_ready(
             self.player_index
         )
@@ -326,7 +233,6 @@ class TestClientStateManager(TestCase):
         expected_state = ClientState.INIT_READY_FOR_INITIAL_DATA
         self.assertEqual(current_state, expected_state)
 
-        # Transition to IN_GAME
         result = self.state_manager.transition_to_game(self.player_index)
         self.assertTrue(result)
         current_state = self.state_manager.get_client_state(

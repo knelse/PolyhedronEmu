@@ -9,17 +9,14 @@ import unittest
 import sys
 import os
 
-# Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def run_all_tests():
     """Run all test suites and return results."""
-    # Discover and run all tests
     loader = unittest.TestLoader()
     test_dir = os.path.dirname(os.path.abspath(__file__))
     suite = loader.discover(test_dir, pattern='test_*.py')
-    # Run tests with detailed output
     runner = unittest.TextTestRunner(verbosity=2, buffer=True)
     result = runner.run(suite)
     return result

@@ -9,11 +9,9 @@ import os
 import logging
 import sys
 
-# Mock py4godot imports before importing server modules
 sys.modules['py4godot'] = Mock()
 sys.modules['py4godot.classes'] = Mock()
 
-# Add the server directory to the path so we can import our modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 
@@ -27,16 +25,13 @@ class TestServerLogger(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test fixtures."""
-        # Close any file handlers to release locks
         for handler in self.logger.logger.handlers[:]:
             if isinstance(handler, logging.FileHandler):
                 handler.close()
                 self.logger.logger.removeHandler(handler)
 
-        # Wait a bit for Windows to release file handles
         time.sleep(0.1)
 
-        # Clean up temporary directory with retry logic for Windows
         max_retries = 3
         for i in range(max_retries):
             try:
@@ -45,9 +40,8 @@ class TestServerLogger(unittest.TestCase):
                 break
             except PermissionError:
                 if i < max_retries - 1:
-                    time.sleep(0.5)  # Wait longer before retry
+                    time.sleep(0.5)
                 else:
-                    # If all retries fail, just leave the directory
                     pass
 
     def test_logger_initialization(self):
@@ -59,18 +53,15 @@ class TestServerLogger(unittest.TestCase):
         """Test log directory is created."""
         new_log_dir = tempfile.mkdtemp()
         try:
-            shutil.rmtree(new_log_dir)  # Remove it first
-            # Create logger which should recreate the directory
+            shutil.rmtree(new_log_dir)
             test_logger = ServerLogger('DirTest', new_log_dir)
             self.assertTrue(os.path.exists(new_log_dir))
 
-            # Clean up additional logger
             for handler in test_logger.logger.handlers[:]:
                 if isinstance(handler, logging.FileHandler):
                     handler.close()
                     test_logger.logger.removeHandler(handler)
         finally:
-            # Clean up
             if os.path.exists(new_log_dir):
                 try:
                     shutil.rmtree(new_log_dir)
@@ -79,7 +70,6 @@ class TestServerLogger(unittest.TestCase):
 
     def test_log_file_creation(self):
         """Test log file is created with correct naming pattern."""
-        # Create another logger to generate a new log file
         test_logger = ServerLogger('FileCreationTest', self.test_log_dir)
         test_logger.info("Test log file creation")
 
@@ -87,15 +77,12 @@ class TestServerLogger(unittest.TestCase):
             f for f in os.listdir(self.test_log_dir)
             if f.startswith('server_') and f.endswith('.log')
         ]
-        # Should have at least one log file
         self.assertGreaterEqual(len(log_files), 1)
 
-        # Verify file naming pattern
         for log_file in log_files:
             self.assertTrue(log_file.startswith('server_'))
             self.assertTrue(log_file.endswith('.log'))
 
-        # Clean up additional logger
         for handler in test_logger.logger.handlers[:]:
             if isinstance(handler, logging.FileHandler):
                 handler.close()
@@ -132,18 +119,15 @@ class TestServerLogger(unittest.TestCase):
         with patch.object(self.logger.logger, 'log') as mock_log:
             self.logger.log_exception("Test context", test_exception)
 
-            # Should be called twice: once for message, once for traceback
             self.assertEqual(mock_log.call_count, 2)
 
-            # First call should be the custom message with exception
             first_call = mock_log.call_args_list[0]
-            self.assertEqual(first_call[0][0], logging.ERROR)  # Level
+            self.assertEqual(first_call[0][0], logging.ERROR)
             self.assertIn("Test context", first_call[0][1])
             self.assertIn("Test exception", first_call[0][1])
 
-            # Second call should be the traceback
             second_call = mock_log.call_args_list[1]
-            self.assertEqual(second_call[0][0], logging.ERROR)  # Level
+            self.assertEqual(second_call[0][0], logging.ERROR)
             self.assertIn("Traceback:", second_call[0][1])
 
     def test_log_exception_with_custom_level(self):
@@ -155,26 +139,21 @@ class TestServerLogger(unittest.TestCase):
                 "Runtime error occurred", test_exception, logging.WARNING
             )
 
-            # Both calls should use WARNING level
             for call in mock_log.call_args_list:
                 self.assertEqual(call[0][0], logging.WARNING)
 
     def test_multiple_logger_instances_no_duplicate_handlers(self):
         """Test that multiple logger instances don't create duplicate
         handlers."""
-        # Create multiple loggers with same name
         logger1 = ServerLogger('DuplicateTest', self.test_log_dir)
         logger2 = ServerLogger('DuplicateTest', self.test_log_dir)
 
-        # Both should reference the same underlying logger
         self.assertIs(logger1.logger, logger2.logger)
 
-        # Handler count should not increase
         handler_count = len(logger1.logger.handlers)
         logger3 = ServerLogger('DuplicateTest', self.test_log_dir)
         self.assertEqual(len(logger3.logger.handlers), handler_count)
 
-        # Clean up additional loggers
         for logger in [logger1, logger2, logger3]:
             for handler in logger.logger.handlers[:]:
                 if isinstance(handler, logging.FileHandler):
@@ -188,7 +167,6 @@ class TestServerLogger(unittest.TestCase):
             with patch('builtins.print') as mock_print:
                 logger = ServerLogger('ErrorTest', '/invalid/path')
 
-                # Should fall back to basic logger
                 self.assertIsInstance(logger.logger, logging.Logger)
                 mock_print.assert_called()
 
@@ -202,7 +180,6 @@ class TestCreateLogger(unittest.TestCase):
         self.assertIsInstance(logger, ServerLogger)
         self.assertEqual(logger.logger.name, 'TCPServer')
 
-        # Clean up
         for handler in logger.logger.handlers[:]:
             if isinstance(handler, logging.FileHandler):
                 handler.close()
@@ -217,13 +194,12 @@ class TestCreateLogger(unittest.TestCase):
             self.assertEqual(logger.logger.name, 'CustomServer')
             self.assertTrue(os.path.exists(test_dir))
 
-            # Clean up logger handlers
             for handler in logger.logger.handlers[:]:
                 if isinstance(handler, logging.FileHandler):
                     handler.close()
                     logger.logger.removeHandler(handler)
 
-            time.sleep(0.1)  # Give time for handles to close
+            time.sleep(0.1)
         finally:
             if os.path.exists(test_dir):
                 try:
@@ -242,18 +218,15 @@ class TestCreateLogger(unittest.TestCase):
             logger = create_logger('FileTest', test_dir)
             logger.info("Test file logging message")
 
-            # Flush all handlers to ensure message is written
             for handler in logger.logger.handlers:
                 if hasattr(handler, 'flush'):
                     handler.flush()
 
-            # Find the log file
             log_files = [
                 f for f in os.listdir(test_dir) if f.endswith('.log')
             ]
             self.assertEqual(len(log_files), 1)
 
-            # Read log file and verify message
             log_file_path = os.path.join(test_dir, log_files[0])
             with open(log_file_path, 'r') as f:
                 log_content = f.read()
@@ -261,13 +234,12 @@ class TestCreateLogger(unittest.TestCase):
             self.assertIn("Test file logging message", log_content)
             self.assertIn("INFO", log_content)
 
-            # Clean up logger handlers
             for handler in logger.logger.handlers[:]:
                 if isinstance(handler, logging.FileHandler):
                     handler.close()
                     logger.logger.removeHandler(handler)
 
-            time.sleep(0.1)  # Give time for handles to close
+            time.sleep(0.1)
         finally:
             if os.path.exists(test_dir):
                 try:

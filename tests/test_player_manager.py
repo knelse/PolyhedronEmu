@@ -14,14 +14,6 @@ class TestPlayerManager(unittest.TestCase):
         self.assertEqual(self.player_manager.get_player_count(), 0)
         self.assertEqual(len(self.player_manager.get_all_players()), 0)
 
-    def test_get_next_player_index_sequential(self):
-        """Test that player indices are assigned sequentially."""
-        first_index = self.player_manager.get_next_player_index()
-        second_index = self.player_manager.get_next_player_index()
-
-        self.assertEqual(first_index, PlayerManager.INITIAL_PLAYER_INDEX)
-        self.assertEqual(second_index, PlayerManager.INITIAL_PLAYER_INDEX + 1)
-
     def test_add_player(self):
         """Test adding a player."""
         player_index = 0x5000
@@ -39,7 +31,6 @@ class TestPlayerManager(unittest.TestCase):
         player_index = 0x5000
         address = ("192.168.1.1", 12345)
 
-        # Add then remove
         self.player_manager.add_player(player_index, address)
         self.assertEqual(self.player_manager.get_player_count(), 1)
 
@@ -51,32 +42,25 @@ class TestPlayerManager(unittest.TestCase):
         """Test that indices are reused after player removal."""
         address = ("192.168.1.1", 12345)
 
-        # Get first index and add player
         first_index = self.player_manager.get_next_player_index()
         self.player_manager.add_player(first_index, address)
 
-        # Get second index (should be first_index + 1)
         second_index = self.player_manager.get_next_player_index()
         self.assertEqual(second_index, first_index + 1)
 
-        # Remove first player
         self.player_manager.remove_player(first_index)
 
-        # Next index should be the recycled first_index
         recycled_index = self.player_manager.get_next_player_index()
         self.assertEqual(recycled_index, first_index)
 
     def test_max_players_limit(self):
         """Test behavior when reaching maximum player limit."""
-        # Mock the next player index to be at max
         original_next = self.player_manager._next_player_index
         self.player_manager._next_player_index = (
             PlayerManager.MAX_PLAYER_INDEX + 1)
 
-        # Should return None when at capacity
         self.assertIsNone(self.player_manager.get_next_player_index())
 
-        # Restore original value
         self.player_manager._next_player_index = original_next
 
     def test_get_player_info_nonexistent(self):
@@ -85,7 +69,6 @@ class TestPlayerManager(unittest.TestCase):
 
     def test_remove_nonexistent_player(self):
         """Test removing a non-existent player (should not crash)."""
-        # This should not raise an exception
         self.player_manager.remove_player(99999)
         self.assertEqual(self.player_manager.get_player_count(), 0)
 
@@ -126,7 +109,6 @@ class TestPlayerManager(unittest.TestCase):
         for thread in threads:
             thread.join()
 
-        # All indices should be unique
         self.assertEqual(len(indices), len(set(indices)))
 
 

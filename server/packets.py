@@ -15,5 +15,4 @@ class ServerPackets:
     ])
 
 
-# Convenience constants for direct access
 INIT_PACKET = ServerPackets.INIT_PACKET

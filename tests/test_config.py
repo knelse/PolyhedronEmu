@@ -36,7 +36,6 @@ class TestConfig(unittest.TestCase):
         """Test default configuration is created when file doesn't exist."""
         non_existent_file = "non_existent_config.json"
 
-        # Ensure file doesn't exist
         if os.path.exists(non_existent_file):
             os.unlink(non_existent_file)
 
@@ -44,10 +43,8 @@ class TestConfig(unittest.TestCase):
             config = load_config(non_existent_file)
             self.assertEqual(config, DEFAULT_CONFIG)
 
-            # Verify file was created
             self.assertTrue(os.path.exists(non_existent_file))
 
-            # Verify file contents
             with open(non_existent_file, 'r') as f:
                 file_config = json.load(f)
             self.assertEqual(file_config, DEFAULT_CONFIG)
@@ -67,7 +64,6 @@ class TestConfig(unittest.TestCase):
                 config = load_config(temp_file)
                 self.assertEqual(config, DEFAULT_CONFIG)
                 mock_print.assert_called()
-                # Verify error message was printed
                 self.assertTrue(any("Error loading config" in str(call)
                                     for call in mock_print.call_args_list))
         finally:
@@ -91,7 +87,6 @@ class TestConfig(unittest.TestCase):
         self.assertIn("port", server_config)
         self.assertIn("backlog", server_config)
 
-        # Verify default values
         self.assertEqual(server_config["host"], "0.0.0.0")
         self.assertEqual(server_config["port"], 25860)
         self.assertEqual(server_config["backlog"], 5)
@@ -100,12 +95,11 @@ class TestConfig(unittest.TestCase):
         """Test loading configuration with default path."""
         default_file = "server_config.json"
 
-        # Clean up if exists
         if os.path.exists(default_file):
             os.unlink(default_file)
 
         try:
-            config = load_config()  # Use default path
+            config = load_config()
             self.assertEqual(config, DEFAULT_CONFIG)
             self.assertTrue(os.path.exists(default_file))
         finally:
