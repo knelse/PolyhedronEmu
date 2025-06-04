@@ -1,12 +1,16 @@
 name: Build Godot Project
 
 on:
-  push: {}
-  pull_request: {}
+  workflow_run:
+    workflows: ["Python application"]
+    types:
+      - completed
+    branches: [master]
 
 jobs:
   Godot:
     runs-on: windows-2022
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     strategy:
       matrix:
         platform: [win32, win64]
@@ -21,10 +25,8 @@ jobs:
           name: example
           preset: ${{ matrix.platform }}
           debugMode: "true"
-        if: ${{ github.event.workflow_run.conclusion == 'success' }}
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Client - ${{ matrix.platform }}
           path: ${{ github.workspace }}/${{ steps.build.outputs.build }}
-        if: ${{ github.event.workflow_run.conclusion == 'success' }}
