@@ -1,4 +1,4 @@
-name: Build Godot project
+name: Godot build
 
 on:
   workflow_run:
@@ -11,6 +11,7 @@ jobs:
   Godot:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions: write-all
     strategy:
       matrix:
         platform: [win64]
@@ -22,8 +23,8 @@ jobs:
         id: export
         uses: firebelley/godot-export@v6.0.0
         with:
-          godot_executable_download_url: https://downloads.tuxfamily.org/godotengine/4.4/Godot_v4.4-stable_linux.x86_64.zip
-          godot_export_templates_download_url: https://downloads.tuxfamily.org/godotengine/4.4/Godot_v4.4-stable_export_templates.tpz
+          godot_executable_download_url: https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
+          godot_export_templates_download_url: https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
           relative_project_path: ./
           archive_output: true
       - name: Upload artifact
