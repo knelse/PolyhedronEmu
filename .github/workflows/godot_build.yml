@@ -125,14 +125,6 @@ jobs:
             for item in addons/py4godot/*; do
               item_name=$(basename "$item")
               
-              # Skip unwanted platform runtimes
-              if [[ "$item_name" == "cpython-3.12.4-linux64" ]] || \
-                 [[ "$item_name" == "cpython-3.12.4-linuxarm64" ]] || \
-                 [[ "$item_name" == "cpython-3.12.4-darwin64" ]]; then
-                echo "⏭️ Skipping $item_name runtime"
-                continue
-              fi
-              
               # Skip .tmp/.TMP files
               if [[ "$item_name" == *.tmp ]] || [[ "$item_name" == *.TMP ]]; then
                 echo "⏭️ Skipping $item_name (temp file)"
@@ -196,57 +188,29 @@ jobs:
           
           echo "File copying complete!"
 
-      - name: Backup project.godot and disable py4godot for headless import
+      - name: Setup py4godot for export
         run: |
-          echo "=== Preparing for headless Godot import ==="
+          echo "=== Setting up py4godot for headless export ==="
           
-          # Backup original project.godot
-          cp project.godot project.godot.backup
-          echo "✅ Backed up original project.godot"
+          # Create .godot directory if it doesn't exist
+          mkdir -p .godot/
           
-          # Create a version without py4godot addon for headless import
-          # This prevents segfault during headless mode
-          echo "Creating safe project.godot for headless import..."
-          grep -v "py4godot" project.godot > project.godot.safe || cp project.godot project.godot.safe
-          
-          # Remove any addon configurations that might cause issues
-          sed -i '/\[addon\]/,/^$/d' project.godot.safe 2>/dev/null || true
-          sed -i '/py4godot/d' project.godot.safe 2>/dev/null || true
-          
-          # Use the safe version for import
-          cp project.godot.safe project.godot
-          
-          echo "Safe project.godot content for headless import:"
-          cat project.godot
-          
-          # Set permissions
-          if [ -d "addons/py4godot" ]; then
-            find addons/py4godot -type f -exec chmod 644 {} \;
-            find addons/py4godot -type d -exec chmod 755 {} \;
-            echo "✅ Set py4godot file permissions"
-          fi
-
-      - name: Restore py4godot configuration after export
-        run: |
-          echo "=== Restoring py4godot configuration ==="
-          
-          # Restore original project.godot with py4godot configuration
-          if [ -f "project.godot.backup" ]; then
-            cp project.godot.backup project.godot
-            echo "✅ Restored original project.godot"
-          fi
-          
-          # Ensure py4godot addon is properly configured
+          # Ensure project settings recognize the GDExtension
+          echo "Checking project.godot for GDExtension configuration..."
           if ! grep -q "py4godot" project.godot; then
-            echo "Adding py4godot addon configuration..."
+            echo "Adding py4godot addon to project.godot"
             echo "" >> project.godot
             echo "[addon]" >> project.godot
             echo "" >> project.godot
             echo "py4godot/enabled=true" >> project.godot
           fi
           
-          echo "Final project.godot content with py4godot:"
+          # Show final project.godot content for debugging
+          echo "Final project.godot content:"
           cat project.godot
+          
+          find addons/py4godot -type f -exec chmod 644 {} \;
+          find addons/py4godot -type d -exec chmod 755 {} \;
 
       - name: Export artifacts
         id: export
@@ -256,43 +220,8 @@ jobs:
           godot_export_templates_download_url: https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
           relative_project_path: ./
 
-      - name: Copy prepared files to export directory
-        run: |
-          echo "=== Copying prepared files to export directory ==="
-          
-          if [ -d "${{ steps.export.outputs.build_directory }}" ] && [ -d "builds" ]; then
-            echo "Copying prepared runtime files to export directory..."
-            
-            # Copy our prepared py4godot addon (Windows64 only)
-            if [ -d "builds/addons" ]; then
-              cp -r builds/addons "${{ steps.export.outputs.build_directory }}/"
-              echo "✅ Copied optimized py4godot addon"
-            fi
-            
-            # Copy Python files and server modules
-            if [ -d "builds/server" ]; then
-              cp -r builds/server "${{ steps.export.outputs.build_directory }}/"
-              echo "✅ Copied server modules"
-            fi
-            
-            # Copy root Python files
-            find builds -maxdepth 1 -name "*.py" -exec cp {} "${{ steps.export.outputs.build_directory }}/" \;
-            echo "✅ Copied Python files"
-            
-            # Copy configuration files
-            if [ -f "builds/server_config.json" ]; then
-              cp builds/server_config.json "${{ steps.export.outputs.build_directory }}/"
-              echo "✅ Copied server_config.json"
-            fi
-            
-            echo "Final export directory contents:"
-            ls -la "${{ steps.export.outputs.build_directory }}"
-          else
-            echo "⚠️ Export directory or builds directory not found, skipping file copy"
-          fi
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: PolyhedronEmu - ${{ matrix.platform }}
-          path: build/*
+          path: ${{ steps.export.outputs.build_directory }}/*
