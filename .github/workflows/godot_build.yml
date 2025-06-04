@@ -261,17 +261,57 @@ jobs:
           echo "Testing headless mode..."
           ./Godot_v4.4.1-stable_linux.x86_64 --headless --verbose project.godot --quit || echo "Headless test failed"
 
-      - name: Export artifacts
-        id: export
-        uses: firebelley/godot-export@v6.0.0
-        with:
-          godot_executable_download_url: https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
-          godot_export_templates_download_url: https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
-          relative_project_path: ./
-          use_preset_export_path: true
+      - name: Manual Godot export
+        run: |
+          echo "=== Manual Godot export ==="
+          
+          # Download Godot
+          wget -O godot.zip https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
+          unzip godot.zip
+          chmod +x Godot_v4.4.1-stable_linux.x86_64
+          
+          # Download export templates
+          wget -O templates.tpz https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
+          
+          # Extract and install templates
+          mkdir -p ~/.local/share/godot/export_templates/4.4.1.stable/
+          unzip templates.tpz -d ~/.local/share/godot/export_templates/4.4.1.stable/
+          
+          # Create build directory
+          mkdir -p build
+          
+          # Export directly without using problematic action
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          sleep 2
+          
+          # Try export with error handling
+          echo "Attempting Godot export..."
+          ./Godot_v4.4.1-stable_linux.x86_64 --headless --export-release "win64" build/PolyhedronEmu.exe project.godot || {
+            echo "Direct export failed, trying without py4godot..."
+            
+            # Backup and remove py4godot temporarily
+            mv addons/py4godot addons/py4godot.bak
+            
+            # Try export again
+            ./Godot_v4.4.1-stable_linux.x86_64 --headless --export-release "win64" build/PolyhedronEmu.exe project.godot
+            
+            # Restore py4godot and copy to build
+            mv addons/py4godot.bak addons/py4godot
+            cp -r addons build/
+          }
+          
+          # Copy our prepared files
+          if [ -d "builds" ]; then
+            cp -r builds/* build/
+            echo "✅ Copied additional runtime files"
+          fi
+          
+          echo "Build directory contents:"
+          ls -la build/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: PolyhedronEmu - ${{ matrix.platform }}
-          path: ${{ steps.export.outputs.build_directory }}/*
+          path: build/*
