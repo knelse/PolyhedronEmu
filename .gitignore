@@ -7,3 +7,6 @@ __pycache__/
 /__pycache__/
 tests/logs/
 tests/.pytest_cache/
+*.exe
+*.pck
+pythonscript.dll
