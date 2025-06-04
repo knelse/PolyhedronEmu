@@ -11,3 +11,5 @@ tests/.pytest_cache/
 *.exe
 *.pck
 pythonscript.dll
+.builds
+*.TMP

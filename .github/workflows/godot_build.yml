@@ -102,6 +102,93 @@ jobs:
             echo "⚠️  Linux Python distribution not found"
           fi
 
+      - name: Copy necessary project files
+        run: |
+          echo "=== Copying necessary project files (excluding .tmp/.TMP files) ==="
+          
+          # Create builds directory structure
+          mkdir -p builds/server
+          mkdir -p builds/addons/py4godot
+          
+          # Copy py4godot addon with Windows64 runtime only
+          if [ -d "addons/py4godot" ]; then
+            echo "Copying py4godot files (Windows64 runtime only)..."
+            
+            # Copy all py4godot files except unwanted platform runtimes and .tmp/.TMP files
+            for item in addons/py4godot/*; do
+              item_name=$(basename "$item")
+              
+              # Skip unwanted platform runtimes
+              if [[ "$item_name" == "cpython-3.12.4-linux64" ]] || \
+                 [[ "$item_name" == "cpython-3.12.4-linuxarm64" ]] || \
+                 [[ "$item_name" == "cpython-3.12.4-darwin64" ]]; then
+                echo "⏭️ Skipping $item_name runtime"
+                continue
+              fi
+              
+              # Skip .tmp/.TMP files
+              if [[ "$item_name" == *.tmp ]] || [[ "$item_name" == *.TMP ]]; then
+                echo "⏭️ Skipping $item_name (temp file)"
+                continue
+              fi
+              
+              # Copy the item
+              if [ -f "$item" ]; then
+                cp "$item" "builds/addons/py4godot/"
+                echo "✅ Copied $item_name"
+              elif [ -d "$item" ]; then
+                cp -r "$item" "builds/addons/py4godot/"
+                echo "✅ Copied $item_name (directory)"
+              fi
+            done
+            
+            echo "✅ Copied py4godot addon (Windows64 runtime only)"
+          fi
+          
+          # Copy server modules (Python files, excluding .tmp/.TMP files)
+          if [ -d "server" ]; then
+            find server -name "*.py" ! -name "*.tmp" ! -name "*.TMP" -exec cp {} builds/server/ \;
+            echo "✅ Copied server modules (excluding .tmp/.TMP files)"
+          fi
+          
+          # Copy root Python files (excluding test files and .tmp/.TMP files)
+          find . -maxdepth 1 -name "*.py" ! -name "*test*" ! -name "*.tmp" ! -name "*.TMP" -exec cp {} builds/ \;
+          echo "✅ Copied root Python files (excluding test files and .tmp/.TMP files)"
+          
+          # Copy server_config.json
+          if [ -f "server_config.json" ]; then
+            cp server_config.json builds/
+            echo "✅ Copied server_config.json"
+          fi
+          
+          # Copy project configuration files
+          config_files="project.godot export_presets.cfg"
+          for config in $config_files; do
+            if [ -f "$config" ]; then
+              cp "$config" builds/
+              echo "✅ Copied $config"
+            fi
+          done
+          
+          # Copy Python packages/subdirectories (excluding tests and .tmp/.TMP files)
+          for dir in */; do
+            dir_name="${dir%/}"
+            # Skip certain directories
+            if [[ "$dir_name" =~ test ]] || [[ "$dir_name" == "addons" ]] || [[ "$dir_name" == "server" ]] || [[ "$dir_name" == "logs" ]] || [[ "$dir_name" == "builds" ]] || [[ "$dir_name" == ".godot" ]]; then
+              continue
+            fi
+            
+            # Check if directory contains Python files
+            if find "$dir_name" -maxdepth 1 -name "*.py" | grep -q .; then
+              mkdir -p "builds/$dir_name"
+              # Copy files excluding .tmp/.TMP files
+              find "$dir_name" -type f ! -name "*.tmp" ! -name "*.TMP" -exec cp {} "builds/$dir_name/" \;
+              echo "✅ Copied Python package: $dir_name (excluding .tmp/.TMP files)"
+            fi
+          done
+          
+          echo "File copying complete!"
+
       - name: Setup py4godot for export
         run: |
           echo "=== Setting up py4godot for headless export ==="
@@ -126,6 +213,30 @@ jobs:
           find addons/py4godot -type f -exec chmod 644 {} \;
           find addons/py4godot -type d -exec chmod 755 {} \;
 
+      - name: Setup Wine and rcedit
+        id: wine_install
+        run: |
+          echo "=== Installing Wine and rcedit ==="
+          
+          # Install Wine
+          sudo apt update
+          sudo apt install -y wine64
+          
+          # Download and setup rcedit
+          wget -O rcedit.exe https://github.com/electron/rcedit/releases/download/v1.1.1/rcedit-x64.exe
+          chmod +x rcedit.exe
+          
+          # Test Wine installation
+          wine64 --version
+          
+          # Set Wine path for the export action
+          echo "WINE_PATH=$(which wine64)" >> $GITHUB_OUTPUT
+          echo "RCEDIT_PATH=$(pwd)/rcedit.exe" >> $GITHUB_OUTPUT
+          
+          echo "✅ Wine and rcedit setup complete"
+          echo "Wine path: $(which wine64)"
+          echo "rcedit path: $(pwd)/rcedit.exe"
+
       - name: Export artifacts
         id: export
         uses: firebelley/godot-export@v6.0.0
@@ -133,6 +244,7 @@ jobs:
           godot_executable_download_url: https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
           godot_export_templates_download_url: https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
           relative_project_path: ./
+          wine_path: ${{ steps.wine_install.outputs.WINE_PATH }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
