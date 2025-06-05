@@ -703,7 +703,7 @@ class CIMonitor:
             # Check system load before processing
             load_ok, load_msg = self.check_system_load()
             if not load_ok:
-                print(f"⏸️ Skipping CI: {load_msg}")
+                print(f"⏸️  Skipping CI: {load_msg}")
                 return False
 
             print(f"✅ {load_msg}")
