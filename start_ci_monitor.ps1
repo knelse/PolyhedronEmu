@@ -3,7 +3,7 @@
 
 param(
     [switch]$Background,
-    [int]$PollInterval = 60,
+    [int]$PollInterval = 30,
     [string]$GodotPath = "D:\Games\Godot\Godot_v4.4.1-stable_win64.exe"
 )
 

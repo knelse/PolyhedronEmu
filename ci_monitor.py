@@ -11,9 +11,13 @@ import subprocess
 import datetime
 import zipfile
 import json
-import logging
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any
+
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 
 class CIMonitor:
@@ -26,15 +30,10 @@ class CIMonitor:
         self.last_commit_hash = None
         self.poll_interval = 30  # seconds
 
-        # Setup logging first so we can log errors
-        self.setup_logging()
-
         # Find git executable
         try:
             self.git_exe = self._find_git_executable()
-            self.logger.info(f"Found git at: {self.git_exe}")
-        except FileNotFoundError as e:
-            self.logger.error(str(e))
+        except FileNotFoundError:
             sys.exit(1)
 
         # Ensure directories exist
@@ -71,22 +70,90 @@ class CIMonitor:
             "Git executable not found. Please install Git or add it to PATH."
         )
 
-    def setup_logging(self):
-        """Setup logging configuration"""
-        log_dir = self.repo_path / "logs"
-        log_dir.mkdir(exist_ok=True)
+    def get_cpu_utilization(self) -> float:
+        """Get current CPU utilization percentage"""
+        if psutil is None:
+            return 0.0
 
-        log_file = log_dir / "ci_monitor.log"
+        try:
+            # Get CPU usage over a 1 second interval for accuracy
+            cpu_percent = psutil.cpu_percent(interval=1)
+            return cpu_percent
+        except Exception:
+            return 0.0
 
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(levelname)s - %(message)s",
-            handlers=[
-                logging.FileHandler(log_file),
-                logging.StreamHandler(sys.stdout),
-            ],
+    def get_gpu_utilization(self) -> float:
+        """Get current GPU utilization percentage"""
+        try:
+            # Try NVIDIA GPU first using nvidia-smi
+            result = subprocess.run(
+                [
+                    "nvidia-smi",
+                    "--query-gpu=utilization.gpu",
+                    "--format=csv,noheader,nounits",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                gpu_usage = float(result.stdout.strip().split("\n")[0])
+                return gpu_usage
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            ValueError,
+            subprocess.TimeoutExpired,
+        ):
+            pass
+
+        try:
+            # Fallback to PowerShell WMI query for integrated/other GPUs
+            powershell_cmd = (
+                "Get-Counter '\\GPU Engine(*)\\Utilization Percentage' | "
+                "Select-Object -ExpandProperty CounterSamples | "
+                "Measure-Object -Property CookedValue -Maximum | "
+                "Select-Object -ExpandProperty Maximum"
+            )
+            result = subprocess.run(
+                ["powershell", "-Command", powershell_cmd],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                gpu_usage = float(result.stdout.strip())
+                return gpu_usage
+        except (subprocess.CalledProcessError, ValueError, subprocess.TimeoutExpired):
+            pass
+
+        # If all methods fail, assume 0% usage
+        return 0.0
+
+    def check_system_load(self) -> Tuple[bool, str]:
+        """Check if system load is acceptable for running CI pipeline"""
+        cpu_usage = self.get_cpu_utilization()
+        gpu_usage = self.get_gpu_utilization()
+
+        cpu_threshold = 10.0
+        gpu_threshold = 10.0
+
+        if cpu_usage > cpu_threshold:
+            return (
+                False,
+                f"CPU usage too high: {cpu_usage:.1f}% (threshold: {cpu_threshold}%)",
+            )
+
+        if gpu_usage > gpu_threshold:
+            return (
+                False,
+                f"GPU usage too high: {gpu_usage:.1f}% (threshold: {gpu_threshold}%)",
+            )
+
+        return (
+            True,
+            f"System load acceptable (CPU: {cpu_usage:.1f}%, GPU: {gpu_usage:.1f}%)",
         )
-        self.logger = logging.getLogger(__name__)
 
     def load_state(self):
         """Load the last processed commit hash"""
@@ -96,10 +163,8 @@ class CIMonitor:
                 with open(state_file, "r") as f:
                     state = json.load(f)
                     self.last_commit_hash = state.get("last_commit_hash")
-                    msg = f"Loaded last processed commit: {self.last_commit_hash}"
-                    self.logger.info(msg)
-            except Exception as e:
-                self.logger.warning(f"Failed to load state: {e}")
+            except Exception:
+                pass
 
     def save_state(self):
         """Save the current state"""
@@ -108,8 +173,8 @@ class CIMonitor:
         try:
             with open(state_file, "w") as f:
                 json.dump(state, f, indent=2)
-        except Exception as e:
-            self.logger.error(f"Failed to save state: {e}")
+        except Exception:
+            pass
 
     def get_latest_commit_hash(self) -> Optional[str]:
         """Get the latest commit hash from git"""
@@ -122,8 +187,7 @@ class CIMonitor:
                 check=True,
             )
             return result.stdout.strip()
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to get commit hash: {e}")
+        except subprocess.CalledProcessError:
             return None
 
     def get_commit_info(self, commit_hash: str) -> Dict[str, Any]:
@@ -159,8 +223,7 @@ class CIMonitor:
                 "author": author,
                 "date": date,
             }
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to get commit info: {e}")
+        except subprocess.CalledProcessError:
             return {
                 "hash": commit_hash,
                 "message": "Unknown",
@@ -170,7 +233,7 @@ class CIMonitor:
 
     def run_flake8(self) -> Tuple[bool, str]:
         """Run flake8 linting, excluding addons folder"""
-        self.logger.info("Running flake8...")
+        print("Running flake8...")
         try:
             cmd = [
                 "python",
@@ -185,21 +248,20 @@ class CIMonitor:
             )
 
             if result.returncode == 0:
-                self.logger.info("✅ flake8 passed")
+                print("✅ flake8 passed")
                 return True, "flake8 passed with no issues"
             else:
-                error_msg = f"❌ flake8 failed:\n{result.stdout}\n{result.stderr}"
-                self.logger.error(error_msg)
+                print("❌ flake8 failed")
                 error_return = f"flake8 errors:\n{result.stdout}\n{result.stderr}"
                 return False, error_return
 
         except Exception as e:
-            self.logger.error(f"Failed to run flake8: {e}")
+            print(f"❌ Failed to run flake8: {e}")
             return False, f"Failed to run flake8: {e}"
 
     def run_pytest(self) -> Tuple[bool, str]:
         """Run pytest test suite"""
-        self.logger.info("Running pytest...")
+        print("Running pytest...")
         try:
             result = subprocess.run(
                 ["python", "-m", "pytest", "tests/", "-v", "--tb=no"],
@@ -209,31 +271,28 @@ class CIMonitor:
             )
 
             if result.returncode == 0:
-                self.logger.info("✅ pytest passed")
+                print("✅ pytest passed")
                 return True, f"pytest passed:\n{result.stdout}"
             else:
-                error_msg = f"❌ pytest failed:\n{result.stdout}\n{result.stderr}"
-                self.logger.error(error_msg)
+                print("❌ pytest failed")
                 error_return = f"pytest failed:\n{result.stdout}\n{result.stderr}"
                 return False, error_return
 
         except Exception as e:
-            self.logger.error(f"Failed to run pytest: {e}")
+            print(f"❌ Failed to run pytest: {e}")
             return False, f"Failed to run pytest: {e}"
 
     def run_godot_build(self) -> Tuple[bool, str]:
         """Run headless Godot build using build_local.ps1"""
-        self.logger.info("Running Godot build using build_local.ps1...")
-
+        print("Running Godot build...")
         build_script = self.repo_path / "build_local.ps1"
         if not build_script.exists():
             error_msg = f"Build script not found at {build_script}"
-            self.logger.error(error_msg)
+            print(f"❌ {error_msg}")
             return False, error_msg
 
         try:
             # Run the PowerShell build script with -Build argument
-            self.logger.info("Executing build_local.ps1 -Build...")
             result = subprocess.run(
                 [
                     "powershell",
@@ -249,23 +308,20 @@ class CIMonitor:
             )
 
             if result.returncode == 0:
-                self.logger.info("✅ Godot build succeeded")
+                print("✅ Godot build succeeded")
                 return True, "Godot build completed successfully"
             else:
-                error_msg = f"❌ Godot build failed:\n{result.stdout}\n{result.stderr}"
-                self.logger.error(error_msg)
+                print("❌ Godot build failed")
                 error_return = f"Godot build failed:\n{result.stdout}\n{result.stderr}"
                 return False, error_return
 
         except Exception as e:
-            self.logger.error(f"Failed to run Godot build: {e}")
+            print(f"❌ Failed to run Godot build: {e}")
             return False, f"Failed to run Godot build: {e}"
 
     def create_build_archive(self, commit_info: Dict[str, Any]) -> Optional[str]:
         """Create archive of build output"""
         if not self.builds_dir.exists():
-            error_msg = "Build directory doesn't exist, cannot create archive"
-            self.logger.error(error_msg)
             return None
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -274,8 +330,6 @@ class CIMonitor:
         archive_path = self.build_history_dir / archive_name
 
         try:
-            self.logger.info(f"Creating build archive: {archive_name}")
-
             with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zipf:
                 for root, dirs, files in os.walk(self.builds_dir):
                     for file in files:
@@ -290,11 +344,9 @@ class CIMonitor:
             # Create build report
             self.create_build_report(archive_name, commit_info, True)
 
-            self.logger.info(f"✅ Build archived: {archive_name}")
             return str(archive_path)
 
-        except Exception as e:
-            self.logger.error(f"Failed to create archive: {e}")
+        except Exception:
             return None
 
     def create_build_report(
@@ -329,49 +381,44 @@ class CIMonitor:
         try:
             with open(report_file, "w") as f:
                 json.dump(reports, f, indent=2)
-        except Exception as e:
-            self.logger.error(f"Failed to save build report: {e}")
+        except Exception:
+            pass
 
     def process_commit(self, commit_hash: str) -> bool:
         """Process a new commit through the CI pipeline"""
         commit_info = self.get_commit_info(commit_hash)
         commit_short = commit_hash[:8]
         commit_msg = commit_info["message"]
-        msg = f"Processing commit {commit_short}: {commit_msg}"
-        self.logger.info(msg)
+        print(f"Processing commit {commit_short}: {commit_msg}")
 
         # Run flake8
         flake8_success, flake8_output = self.run_flake8()
         if not flake8_success:
-            self.logger.error("CI pipeline failed at flake8 stage")
+            print("❌ CI pipeline failed at flake8 stage")
             self.create_build_report("", commit_info, False)
             return False
 
         # Run pytest
         pytest_success, pytest_output = self.run_pytest()
         if not pytest_success:
-            self.logger.error("CI pipeline failed at pytest stage")
+            print("❌ CI pipeline failed at pytest stage")
             self.create_build_report("", commit_info, False)
             return False
 
         # Run Godot build
         build_success, build_output = self.run_godot_build()
         if not build_success:
-            self.logger.error("CI pipeline failed at build stage")
+            print("❌ CI pipeline failed at build stage")
             self.create_build_report("", commit_info, False)
             return False
 
         # Create archive
         archive_path = self.create_build_archive(commit_info)
         if archive_path:
-            success_msg = (
-                f"✅ CI pipeline completed successfully for commit "
-                f"{commit_hash[:8]}"
-            )
-            self.logger.info(success_msg)
+            print(f"✅ CI pipeline completed successfully for commit {commit_short}")
             return True
         else:
-            self.logger.error("CI pipeline failed at archiving stage")
+            print("❌ CI pipeline failed at archiving stage")
             self.create_build_report("", commit_info, False)
             return False
 
@@ -382,7 +429,15 @@ class CIMonitor:
             return False
 
         if current_commit != self.last_commit_hash:
-            self.logger.info(f"New commit detected: {current_commit}")
+            print(f"New commit detected: {current_commit}")
+
+            # Check system load before processing
+            load_ok, load_msg = self.check_system_load()
+            if not load_ok:
+                print(f"⏸️ Skipping CI: {load_msg}")
+                return False
+
+            print(f"✅ {load_msg}")
 
             # Process the commit
             if self.process_commit(current_commit):
@@ -390,26 +445,20 @@ class CIMonitor:
                 self.save_state()
                 return True
             else:
-                error_msg = (
-                    "Failed to process commit, not updating last processed " "commit"
-                )
-                self.logger.error(error_msg)
                 return False
 
         return False
 
     def run(self):
         """Main monitoring loop"""
-        self.logger.info("Starting CI monitor...")
-        self.logger.info(f"Monitoring repository: {self.repo_path}")
-        self.logger.info(f"Build history directory: {self.build_history_dir}")
-        self.logger.info(f"Poll interval: {self.poll_interval} seconds")
-        self.logger.info(f"Git executable: {self.git_exe}")
+        print("Starting CI monitor...")
+        print(f"Monitoring repository: {self.repo_path}")
+        print(f"Poll interval: {self.poll_interval} seconds")
 
         # Check if we're in a git repository
         git_dir = self.repo_path / ".git"
         if not git_dir.exists():
-            self.logger.error("Not a git repository!")
+            print("❌ Not a git repository!")
             sys.exit(1)
 
         # Initial check
@@ -418,8 +467,9 @@ class CIMonitor:
             if current_commit:
                 self.last_commit_hash = current_commit
                 self.save_state()
-                init_msg = f"Initialized with current commit: {current_commit}"
-                self.logger.info(init_msg)
+                print(f"Initialized with current commit: {current_commit}")
+        else:
+            print(f"Last processed commit: {self.last_commit_hash}")
 
         try:
             while True:
@@ -427,9 +477,9 @@ class CIMonitor:
                 time.sleep(self.poll_interval)
 
         except KeyboardInterrupt:
-            self.logger.info("CI monitor stopped by user")
+            print("\nCI monitor stopped by user")
         except Exception as e:
-            self.logger.error(f"CI monitor crashed: {e}")
+            print(f"❌ CI monitor crashed: {e}")
             sys.exit(1)
 
 

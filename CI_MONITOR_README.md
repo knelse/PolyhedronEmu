@@ -4,7 +4,7 @@ This script continuously monitors git commits in the repository and runs an auto
 
 ## Features
 
-- **Continuous Monitoring**: Monitors git repository for new commits every 60 seconds (configurable)
+- **Continuous Monitoring**: Monitors git repository for new commits every 30 seconds (configurable)
 - **Multi-stage Pipeline**: Runs flake8 → pytest → Godot build → archive creation
 - **Build History**: Archives successful builds with timestamps and commit info
 - **Persistent State**: Remembers the last processed commit across restarts
