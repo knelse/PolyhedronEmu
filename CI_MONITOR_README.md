@@ -18,9 +18,11 @@ This script continuously monitors git commits in the repository and runs an auto
    
 2. **Git** installed and repository initialized
 
-3. **Godot Engine** executable (default path: `D:/Games/Godot/Godot_v4.4.1-stable_win64.exe`)
+3. **PowerShell** with execution policy allowing script execution
 
-4. **Python packages** for linting and testing:
+4. **Build script** `build_local.ps1` in the repository root
+
+5. **Python packages** for linting and testing:
    ```bash
    pip install flake8 pytest
    ```
@@ -57,9 +59,9 @@ python ci_monitor.py --godot-exe "C:/Games/Godot/godot.exe"
 - **Stops pipeline if tests fail**
 
 ### 3. Godot Build
-- Runs headless Godot import and export
-- Builds for Windows 64-bit platform
-- Copies necessary runtime files (py4godot, server modules, configs)
+- Uses existing `build_local.ps1 -Build` script
+- Handles cleaning, importing, exporting, and file copying automatically
+- Builds for Windows 64-bit platform with all necessary runtime files
 - **Stops pipeline if build fails**
 
 ### 4. Archive Creation

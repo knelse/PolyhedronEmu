@@ -8,7 +8,6 @@ import os
 import sys
 import time
 import subprocess
-import shutil
 import datetime
 import zipfile
 import json
@@ -223,46 +222,33 @@ class CIMonitor:
             return False, f"Failed to run pytest: {e}"
 
     def run_godot_build(self) -> Tuple[bool, str]:
-        """Run headless Godot build"""
-        self.logger.info("Running Godot build...")
+        """Run headless Godot build using build_local.ps1"""
+        self.logger.info("Running Godot build using build_local.ps1...")
 
-        if not self.godot_exe.exists():
-            error_msg = f"Godot executable not found at {self.godot_exe}"
+        build_script = self.repo_path / "build_local.ps1"
+        if not build_script.exists():
+            error_msg = f"Build script not found at {build_script}"
             self.logger.error(error_msg)
             return False, error_msg
 
         try:
-            # Clean previous build
-            if self.builds_dir.exists():
-                shutil.rmtree(self.builds_dir)
-            self.builds_dir.mkdir(exist_ok=True)
-
-            # Import resources first
-            self.logger.info("Importing project resources...")
+            # Run the PowerShell build script with -Build argument
+            self.logger.info("Executing build_local.ps1 -Build...")
             result = subprocess.run(
-                [str(self.godot_exe), "--headless", "--import"],
+                [
+                    "powershell",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(build_script),
+                    "-Build",
+                ],
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
             )
 
-            # Export the project
-            self.logger.info("Exporting project...")
-            exe_path = str(self.builds_dir / "PolyhedronEmu_win64.exe")
-            cmd = [
-                str(self.godot_exe),
-                "--headless",
-                "--export-release",
-                "Win64",
-                exe_path,
-            ]
-            result = subprocess.run(
-                cmd, cwd=self.repo_path, capture_output=True, text=True
-            )
-
             if result.returncode == 0:
-                # Copy additional files similar to build_local.ps1
-                self.copy_build_files()
                 self.logger.info("✅ Godot build succeeded")
                 return True, "Godot build completed successfully"
             else:
@@ -274,60 +260,6 @@ class CIMonitor:
         except Exception as e:
             self.logger.error(f"Failed to run Godot build: {e}")
             return False, f"Failed to run Godot build: {e}"
-
-    def copy_build_files(self):
-        """Copy additional files needed for the build (similar to build_local.ps1)"""
-        try:
-            # Copy py4godot addon (Windows64 runtime only)
-            py4godot_src = self.repo_path / "addons" / "py4godot"
-            py4godot_dest = self.builds_dir / "addons" / "py4godot"
-
-            if py4godot_src.exists():
-                py4godot_dest.parent.mkdir(parents=True, exist_ok=True)
-
-                # Copy all py4godot files except non-Windows platform runtimes
-                excluded_dirs = [
-                    "cpython-3.12.4-linux64",
-                    "cpython-3.12.4-linuxarm64",
-                    "cpython-3.12.4-darwin64",
-                ]
-
-                for item in py4godot_src.iterdir():
-                    if item.name not in excluded_dirs:
-                        if item.suffix.lower() not in [".tmp"]:
-                            if item.is_dir():
-                                dest = py4godot_dest / item.name
-                                shutil.copytree(item, dest, dirs_exist_ok=True)
-                            else:
-                                dest_file = py4godot_dest / item.name
-                                shutil.copy2(item, dest_file)
-
-            # Copy server modules
-            server_src = self.repo_path / "server"
-            server_dest = self.builds_dir / "server"
-
-            if server_src.exists():
-                server_dest.mkdir(exist_ok=True)
-                for py_file in server_src.glob("*.py"):
-                    if py_file.suffix.lower() not in [".tmp"]:
-                        shutil.copy2(py_file, server_dest / py_file.name)
-
-            # Copy Python files from root (excluding test files)
-            for py_file in self.repo_path.glob("*.py"):
-                is_not_test = "test" not in py_file.name.lower()
-                is_not_tmp = py_file.suffix.lower() not in [".tmp"]
-                if is_not_test and is_not_tmp:
-                    shutil.copy2(py_file, self.builds_dir / py_file.name)
-
-            # Copy configuration files
-            config_files = ["server_config.json", "project.godot", "export_presets.cfg"]
-            for config in config_files:
-                config_path = self.repo_path / config
-                if config_path.exists():
-                    shutil.copy2(config_path, self.builds_dir / config)
-
-        except Exception as e:
-            self.logger.warning(f"Error copying build files: {e}")
 
     def create_build_archive(self, commit_info: Dict[str, Any]) -> Optional[str]:
         """Create archive of build output"""
