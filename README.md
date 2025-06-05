@@ -1,4 +1,10 @@
 # PolyhedronEmu
+## 🚀 Latest Build
+
+**[⬇️ Download Latest Build](https://github.com/knelse/PolyhedronEmu/releases?q=build&expanded=true)**
+
+*Builds are automatically generated from the latest commit that passes all tests.*
+
 Sphere (old Russian MMO) Emulator. Work in progress.
 
 ## Development
