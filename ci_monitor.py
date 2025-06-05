@@ -11,13 +11,19 @@ import subprocess
 import datetime
 import zipfile
 import json
+import re
 from pathlib import Path
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, List
 
 try:
     import psutil
 except ImportError:
     psutil = None
+
+try:
+    import requests
+except ImportError:
+    requests = None
 
 
 class CIMonitor:
@@ -26,9 +32,17 @@ class CIMonitor:
         self.build_history_dir = self.repo_path / ".build_history"
         self.builds_dir = self.repo_path / ".builds"
         godot_path = "D:/Games/Godot/Godot_v4.4.1-stable_win64.exe"
+        self.godot_pat_path = "../../github_pat"
         self.godot_exe = Path(godot_path)
         self.last_commit_hash = None
         self.poll_interval = 30  # seconds
+
+        # GitHub configuration
+        with open(self.godot_pat_path, "r") as f:
+            self.github_token = f.read().strip()
+        self.github_owner = "knelse"  # Replace with actual GitHub username
+        self.github_repo = "PolyhedronEmu"  # Replace with actual repo name
+        self.max_artifacts = 5  # Keep 5 latest artifacts
 
         # Find git executable
         try:
@@ -129,6 +143,201 @@ class CIMonitor:
 
         # If all methods fail, assume 0% usage
         return 0.0
+
+    def upload_to_github(self, archive_path: str, commit_info: Dict[str, Any]) -> bool:
+        """Upload build artifact to GitHub releases"""
+        if not requests or not self.github_token:
+            print("⚠️ GitHub upload skipped - requests library or token not available")
+            return False
+
+        try:
+            # Create release tag name
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            commit_short = commit_info["hash"][:8]
+            tag_name = f"build-{timestamp}-{commit_short}"
+            release_name = f"Build {timestamp} ({commit_short})"
+
+            # Create release
+            release_url = f"https://api.github.com/repos/{self.github_owner}/"
+            f"{self.github_repo}/releases"
+            release_data = {
+                "tag_name": tag_name,
+                "name": release_name,
+                "body": f"Automated build from commit {commit_info['hash']}\n\n"
+                f"**Commit:** {commit_info['message']}\n"
+                f"**Author:** {commit_info['author']}\n"
+                f"**Date:** {commit_info['date']}",
+                "draft": False,
+                "prerelease": True,
+            }
+
+            headers = {
+                "Authorization": f"token {self.github_token}",
+                "Accept": "application/vnd.github.v3+json",
+            }
+
+            print(f"Creating GitHub release: {release_name}")
+            response = requests.post(release_url, json=release_data, headers=headers)
+
+            if response.status_code != 201:
+                error_msg = f"❌ Failed to create release: {response.status_code}"
+                print(f"{error_msg} - {response.text}")
+                return False
+
+            release_info = response.json()
+            upload_url = release_info["upload_url"].replace("{?name,label}", "")
+
+            # Upload artifact
+            archive_name = Path(archive_path).name
+            print(f"Uploading artifact: {archive_name}")
+
+            with open(archive_path, "rb") as f:
+                upload_response = requests.post(
+                    f"{upload_url}?name={archive_name}",
+                    headers={
+                        "Authorization": f"token {self.github_token}",
+                        "Content-Type": "application/zip",
+                    },
+                    data=f,
+                )
+
+            if upload_response.status_code != 201:
+                print(f"❌ Failed to upload artifact: {upload_response.status_code}")
+                return False
+
+            print(f"✅ Successfully uploaded to GitHub: {release_info['html_url']}")
+
+            # Update README with latest artifact link
+            self.update_readme_with_latest_link(release_info["html_url"])
+
+            # Clean up old artifacts
+            self.cleanup_old_artifacts()
+
+            return True
+
+        except Exception as e:
+            print(f"❌ GitHub upload failed: {e}")
+            return False
+
+    def get_github_releases(self) -> List[Dict[str, Any]]:
+        """Get list of GitHub releases"""
+        if not requests or not self.github_token:
+            return []
+
+        try:
+            url = f"https://api.github.com/repos/{self.github_owner}/{self.github_repo}/releases"
+            headers = {
+                "Authorization": f"token {self.github_token}",
+                "Accept": "application/vnd.github.v3+json",
+            }
+
+            response = requests.get(url, headers=headers)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                print(f"❌ Failed to fetch releases: {response.status_code}")
+                return []
+        except Exception as e:
+            print(f"❌ Error fetching releases: {e}")
+            return []
+
+    def cleanup_old_artifacts(self):
+        """Delete old build artifacts, keeping only the latest 5"""
+        try:
+            releases = self.get_github_releases()
+
+            # Filter for build releases (prerelease with "build-" tag pattern)
+            build_releases = [
+                r
+                for r in releases
+                if r.get("prerelease", False)
+                and r.get("tag_name", "").startswith("build-")
+            ]
+
+            # Sort by creation date (newest first)
+            build_releases.sort(key=lambda x: x["created_at"], reverse=True)
+
+            # Delete releases beyond the limit
+            if len(build_releases) > self.max_artifacts:
+                releases_to_delete = build_releases[self.max_artifacts :]
+
+                headers = {
+                    "Authorization": f"token {self.github_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                }
+
+                for release in releases_to_delete:
+                    delete_url = "https://api.github.com/repos/"
+                    f"{self.github_owner}/{self.github_repo}/releases/"
+                    f"{release['id']}"
+                    response = requests.delete(delete_url, headers=headers)
+
+                    if response.status_code == 204:
+                        print(f"🗑️ Deleted old release: {release['tag_name']}")
+                    else:
+                        print(
+                            f"❌ Failed to delete release {release['tag_name']}"
+                            f": {response.status_code}"
+                        )
+
+        except Exception as e:
+            print(f"❌ Error cleaning up old artifacts: {e}")
+
+    def update_readme_with_latest_link(self, release_url: str):
+        """Update README.md with link to latest build artifact"""
+        readme_path = self.repo_path / "README.md"
+
+        if not readme_path.exists():
+            print("⚠️ README.md not found, skipping update")
+            return
+
+        try:
+            with open(readme_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # Look for existing build status section
+            build_section_pattern = (
+                r"<!-- BUILD_STATUS_START -->.*?<!-- BUILD_STATUS_END -->"
+            )
+
+            new_build_section = f"""<!-- BUILD_STATUS_START -->
+## 🚀 Latest Build
+
+[![Download Latest Build]({release_url}/badge.svg)]({release_url})
+
+**[⬇️ Download Latest Build]({release_url})**
+
+*This build is automatically generated from the latest commit that passes all tests.*
+<!-- BUILD_STATUS_END -->"""
+
+            if re.search(build_section_pattern, content, re.DOTALL):
+                # Replace existing section
+                content = re.sub(
+                    build_section_pattern, new_build_section, content, flags=re.DOTALL
+                )
+            else:
+                # Add new section at the top (after title if it exists)
+                lines = content.split("\n")
+                insert_pos = 0
+
+                # Skip title line if it exists
+                if lines and lines[0].startswith("#"):
+                    insert_pos = 1
+                    # Skip empty line after title if it exists
+                    if len(lines) > 1 and lines[1].strip() == "":
+                        insert_pos = 2
+
+                lines.insert(insert_pos, new_build_section)
+                lines.insert(insert_pos + 1, "")  # Add empty line after section
+                content = "\n".join(lines)
+
+            with open(readme_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            print("✅ Updated README.md with latest build link")
+
+        except Exception as e:
+            print(f"❌ Failed to update README: {e}")
 
     def check_system_load(self) -> Tuple[bool, str]:
         """Check if system load is acceptable for running CI pipeline"""
@@ -416,6 +625,18 @@ class CIMonitor:
         archive_path = self.create_build_archive(commit_info)
         if archive_path:
             print(f"✅ CI pipeline completed successfully for commit {commit_short}")
+
+            # Upload to GitHub if configured
+            if self.github_token:
+                print("Uploading to GitHub...")
+                github_success = self.upload_to_github(archive_path, commit_info)
+                if github_success:
+                    print("✅ GitHub upload completed")
+                else:
+                    print("⚠️ GitHub upload failed, but build archive created locally")
+            else:
+                print("ℹ️ GitHub upload skipped (no token configured)")
+
             return True
         else:
             print("❌ CI pipeline failed at archiving stage")
