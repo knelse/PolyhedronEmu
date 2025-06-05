@@ -2,7 +2,6 @@
 Sphere (old Russian MMO) Emulator. Work in progress.
 
 [![Python lint & test](https://github.com/knelse/PolyhedronEmu/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/knelse/PolyhedronEmu/actions/workflows/python-app.yml)
-[![Godot build](https://github.com/knelse/PolyhedronEmu/actions/workflows/godot_build.yml/badge.svg?branch=master)](https://github.com/knelse/PolyhedronEmu/actions/workflows/godot_build.yml)
 
 ### Windows Builds
 - **[Win64 Server](https://github.com/knelse/PolyhedronEmu/actions/workflows/godot_build.yml)**
