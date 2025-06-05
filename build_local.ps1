@@ -113,6 +113,57 @@ function Build-Project {
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Copying py4godot addon and runtime files..." -ForegroundColor Yellow
         
+        # Helper function to check if file needs copying
+        function Should-CopyFile($srcFile, $destFile) {
+            if (-not (Test-Path $destFile)) {
+                return $true
+            }
+            $srcTime = (Get-Item $srcFile).LastWriteTime
+            $destTime = (Get-Item $destFile).LastWriteTime
+            return $srcTime -gt $destTime
+        }
+        
+        # Helper function to copy file if needed
+        function Copy-IfNewer($srcPath, $destPath, $itemName) {
+            $copied = $false
+            if (Test-Path $srcPath -PathType Leaf) {
+                # Single file
+                if (Should-CopyFile $srcPath $destPath) {
+                    $destDir = Split-Path $destPath -Parent
+                    if (-not (Test-Path $destDir)) {
+                        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+                    }
+                    Copy-Item $srcPath $destPath -Force
+                    Write-Host "  ✅ Updated $itemName" -ForegroundColor Green
+                    $copied = $true
+                } else {
+                    Write-Host "  ⏭️  Skipped $itemName (up to date)" -ForegroundColor Gray
+                }
+            } elseif (Test-Path $srcPath -PathType Container) {
+                # Directory - check each file recursively
+                $anyFilesCopied = $false
+                Get-ChildItem $srcPath -Recurse -File | ForEach-Object {
+                    $relativePath = $_.FullName.Substring($srcPath.Length + 1)
+                    $destFilePath = Join-Path $destPath $relativePath
+                    if (Should-CopyFile $_.FullName $destFilePath) {
+                        $destFileDir = Split-Path $destFilePath -Parent
+                        if (-not (Test-Path $destFileDir)) {
+                            New-Item -ItemType Directory -Path $destFileDir -Force | Out-Null
+                        }
+                        Copy-Item $_.FullName $destFilePath -Force
+                        $anyFilesCopied = $true
+                    }
+                }
+                if ($anyFilesCopied) {
+                    Write-Host "  ✅ Updated $itemName" -ForegroundColor Green
+                    $copied = $true
+                } else {
+                    Write-Host "  ⏭️  Skipped $itemName (up to date)" -ForegroundColor Gray
+                }
+            }
+            return $copied
+        }
+        
         # Copy py4godot addon with Windows64 runtime only
         $py4godotSrc = "addons\py4godot"
         $py4godotDest = "$BUILDS_DIR\addons\py4godot"
@@ -126,14 +177,21 @@ function Build-Project {
             }
             
             # Copy all py4godot files except platform runtime directories and .tmp/.TMP files
+            $py4godotUpdated = $false
             Get-ChildItem $py4godotSrc | ForEach-Object {
                 if ($_.Name -notin @("cpython-3.12.4-linux64", "cpython-3.12.4-linuxarm64", "cpython-3.12.4-darwin64") -and $_.Extension -notin @(".tmp", ".TMP")) {
-                    Copy-Item $_.FullName "$py4godotDest\" -Force -Recurse
-                    Write-Host "  ✅ Copied $($_.Name)" -ForegroundColor Green
+                    $itemDest = Join-Path $py4godotDest $_.Name
+                    if (Copy-IfNewer $_.FullName $itemDest $_.Name) {
+                        $py4godotUpdated = $true
+                    }
                 }
             }
             
-            Write-Host "  ✅ Copied py4godot addon (Windows64 runtime only)" -ForegroundColor Green
+            if ($py4godotUpdated) {
+                Write-Host "  ✅ py4godot addon updated (Windows64 runtime only)" -ForegroundColor Green
+            } else {
+                Write-Host "  ⏭️  py4godot addon up to date" -ForegroundColor Gray
+            }
         }
         
         # Copy server modules for Python imports
@@ -144,23 +202,48 @@ function Build-Project {
             if (-not (Test-Path $serverDest)) {
                 New-Item -ItemType Directory -Path $serverDest -Force | Out-Null
             }
+            $serverUpdated = $false
             Get-ChildItem "$serverSrc\*.py" | Where-Object { $_.Extension -notin @(".tmp", ".TMP") } | ForEach-Object {
-                Copy-Item $_.FullName "$serverDest\" -Force
+                $destFile = Join-Path $serverDest $_.Name
+                if (Should-CopyFile $_.FullName $destFile) {
+                    Copy-Item $_.FullName $destFile -Force
+                    $serverUpdated = $true
+                    Write-Host "  ✅ Updated $($_.Name)" -ForegroundColor Green
+                } else {
+                    Write-Host "  ⏭️  Skipped $($_.Name) (up to date)" -ForegroundColor Gray
+                }
             }
-            Write-Host "  ✅ Copied server modules (excluding .tmp/.TMP files)" -ForegroundColor Green
+            if (-not $serverUpdated) {
+                Write-Host "  ⏭️  All server modules up to date" -ForegroundColor Gray
+            }
         }
         
         # Copy all Python files from root (excluding test files, ci_monitor.py, and .tmp/.TMP files)
         $pythonFiles = Get-ChildItem -Filter "*.py" -File | Where-Object { $_.Name -notlike "*test*" -and $_.Name -ne "ci_monitor.py" -and $_.Extension -notin @(".tmp", ".TMP") }
+        $rootPyUpdated = $false
         foreach ($pyFile in $pythonFiles) {
-            Copy-Item $pyFile.FullName "$BUILDS_DIR\" -Force
-            Write-Host "  ✅ Copied $($pyFile.Name)" -ForegroundColor Green
+            $destFile = Join-Path $BUILDS_DIR $pyFile.Name
+            if (Should-CopyFile $pyFile.FullName $destFile) {
+                Copy-Item $pyFile.FullName $destFile -Force
+                Write-Host "  ✅ Updated $($pyFile.Name)" -ForegroundColor Green
+                $rootPyUpdated = $true
+            } else {
+                Write-Host "  ⏭️  Skipped $($pyFile.Name) (up to date)" -ForegroundColor Gray
+            }
+        }
+        if (-not $rootPyUpdated -and $pythonFiles.Count -gt 0) {
+            Write-Host "  ⏭️  All root Python files up to date" -ForegroundColor Gray
         }
         
         # Copy server_config.json
         if (Test-Path "server_config.json") {
-            Copy-Item "server_config.json" "$BUILDS_DIR\" -Force
-            Write-Host "  ✅ Copied server_config.json" -ForegroundColor Green
+            $destConfigFile = Join-Path $BUILDS_DIR "server_config.json"
+            if (Should-CopyFile "server_config.json" $destConfigFile) {
+                Copy-Item "server_config.json" $destConfigFile -Force
+                Write-Host "  ✅ Updated server_config.json" -ForegroundColor Green
+            } else {
+                Write-Host "  ⏭️  Skipped server_config.json (up to date)" -ForegroundColor Gray
+            }
         }
         
         # Copy .godot/imported folder for processed assets
@@ -178,11 +261,21 @@ function Build-Project {
         
         # Copy project configuration files
         $configFiles = @("project.godot", "export_presets.cfg")
+        $configUpdated = $false
         foreach ($config in $configFiles) {
             if (Test-Path $config) {
-                Copy-Item $config "$BUILDS_DIR\" -Force
-                Write-Host "  ✅ Copied $config" -ForegroundColor Green
+                $destConfigFile = Join-Path $BUILDS_DIR $config
+                if (Should-CopyFile $config $destConfigFile) {
+                    Copy-Item $config $destConfigFile -Force
+                    Write-Host "  ✅ Updated $config" -ForegroundColor Green
+                    $configUpdated = $true
+                } else {
+                    Write-Host "  ⏭️  Skipped $config (up to date)" -ForegroundColor Gray
+                }
             }
+        }
+        if (-not $configUpdated) {
+            Write-Host "  ⏭️  All config files up to date" -ForegroundColor Gray
         }
         
         # Copy any Python packages/subdirectories (excluding tests and .tmp/.TMP files)
@@ -193,11 +286,27 @@ function Build-Project {
                 if (-not (Test-Path $destDir)) {
                     New-Item -ItemType Directory -Path $destDir -Force | Out-Null
                 }
-                # Copy files excluding .tmp/.TMP files
-                Get-ChildItem "$($pyDir.FullName)\*" | Where-Object { $_.Extension -notin @(".tmp", ".TMP") } | ForEach-Object {
-                    Copy-Item $_.FullName $destDir -Force -Recurse
+                
+                $packageUpdated = $false
+                # Copy files excluding .tmp/.TMP files, only if newer
+                Get-ChildItem "$($pyDir.FullName)" -Recurse -File | Where-Object { $_.Extension -notin @(".tmp", ".TMP") } | ForEach-Object {
+                    $relativePath = $_.FullName.Substring($pyDir.FullName.Length + 1)
+                    $destFilePath = Join-Path $destDir $relativePath
+                    if (Should-CopyFile $_.FullName $destFilePath) {
+                        $destFileDir = Split-Path $destFilePath -Parent
+                        if (-not (Test-Path $destFileDir)) {
+                            New-Item -ItemType Directory -Path $destFileDir -Force | Out-Null
+                        }
+                        Copy-Item $_.FullName $destFilePath -Force
+                        $packageUpdated = $true
+                    }
                 }
-                Write-Host "  ✅ Copied Python package: $($pyDir.Name) (excluding .tmp/.TMP files)" -ForegroundColor Green
+                
+                if ($packageUpdated) {
+                    Write-Host "  ✅ Updated Python package: $($pyDir.Name)" -ForegroundColor Green
+                } else {
+                    Write-Host "  ⏭️  Skipped Python package: $($pyDir.Name) (up to date)" -ForegroundColor Gray
+                }
             }
         }
     }
@@ -263,7 +372,6 @@ if ($Setup) {
 }
 elseif ($Build) {
     if (Initialize-Environment) {
-        Clear-Project
         Build-Project
     }
 }
