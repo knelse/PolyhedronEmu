@@ -11,7 +11,6 @@ import subprocess
 import datetime
 import zipfile
 import json
-import re
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, List
 
@@ -259,9 +258,6 @@ class CIMonitor:
 
             print(f"✅ Successfully uploaded to GitHub: {release_info['html_url']}")
 
-            # Update README with latest artifact link
-            self.update_readme_with_latest_link(release_info["html_url"])
-
             # Clean up old artifacts
             self.cleanup_old_artifacts()
 
@@ -335,62 +331,6 @@ class CIMonitor:
 
         except Exception as e:
             print(f"❌ Error cleaning up old artifacts: {e}")
-
-    def update_readme_with_latest_link(self, release_url: str):
-        """Update README.md with link to latest build artifact"""
-        readme_path = self.repo_path / "README.md"
-
-        if not readme_path.exists():
-            print("⚠️ README.md not found, skipping update")
-            return
-
-        try:
-            with open(readme_path, "r", encoding="utf-8") as f:
-                content = f.read()
-
-            # Look for existing build status section
-            build_section_pattern = (
-                r"<!-- BUILD_STATUS_START -->.*?<!-- BUILD_STATUS_END -->"
-            )
-
-            new_build_section = f"""<!-- BUILD_STATUS_START -->
-## 🚀 Latest Build
-
-[![Download Latest Build]({release_url}/badge.svg)]({release_url})
-
-**[⬇️ Download Latest Build]({release_url})**
-
-*This build is automatically generated from the latest commit that passes all tests.*
-<!-- BUILD_STATUS_END -->"""
-
-            if re.search(build_section_pattern, content, re.DOTALL):
-                # Replace existing section
-                content = re.sub(
-                    build_section_pattern, new_build_section, content, flags=re.DOTALL
-                )
-            else:
-                # Add new section at the top (after title if it exists)
-                lines = content.split("\n")
-                insert_pos = 0
-
-                # Skip title line if it exists
-                if lines and lines[0].startswith("#"):
-                    insert_pos = 1
-                    # Skip empty line after title if it exists
-                    if len(lines) > 1 and lines[1].strip() == "":
-                        insert_pos = 2
-
-                lines.insert(insert_pos, new_build_section)
-                lines.insert(insert_pos + 1, "")  # Add empty line after section
-                content = "\n".join(lines)
-
-            with open(readme_path, "w", encoding="utf-8") as f:
-                f.write(content)
-
-            print("✅ Updated README.md with latest build link")
-
-        except Exception as e:
-            print(f"❌ Failed to update README: {e}")
 
     def check_system_load(self) -> Tuple[bool, str]:
         """Check if system load is acceptable for running CI pipeline"""
@@ -595,7 +535,10 @@ class CIMonitor:
 
     def create_build_archive(self, commit_info: Dict[str, Any]) -> Optional[str]:
         """Create archive of build output"""
+        print("Creating build archive...")
+
         if not self.builds_dir.exists():
+            print("❌ Build directory doesn't exist, cannot create archive")
             return None
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -603,24 +546,63 @@ class CIMonitor:
         archive_name = f"build_{timestamp}_{commit_short}.zip"
         archive_path = self.build_history_dir / archive_name
 
+        print(f"  📦 Archive name: {archive_name}")
+
         try:
+            file_count = 0
+            total_size = 0
+
+            # Count files first for progress tracking
+            print("  🔍 Scanning build directory...")
+            for root, dirs, files in os.walk(self.builds_dir):
+                file_count += len(files)
+
+            print(f"  📁 Found {file_count} files to archive")
+
             with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                processed = 0
+                last_percentage = -1
+
                 for root, dirs, files in os.walk(self.builds_dir):
                     for file in files:
                         file_path = Path(root) / file
                         arc_path = file_path.relative_to(self.builds_dir)
+
                         zipf.write(file_path, arc_path)
+                        total_size += file_path.stat().st_size
+                        processed += 1
+
+                        # Show percentage progress every 10%
+                        percentage = int((processed / file_count) * 100)
+                        if percentage >= last_percentage + 10:
+                            print(
+                                f"  📊 Progress: {percentage}% ({processed}/{file_count} files)"
+                            )
+                            last_percentage = percentage
 
                 # Add commit info
+                print("  📝 Adding commit information...")
                 commit_info_str = json.dumps(commit_info, indent=2)
                 zipf.writestr("commit_info.json", commit_info_str)
+
+            archive_size = archive_path.stat().st_size
+            compression_ratio = (
+                (1 - archive_size / total_size) * 100 if total_size > 0 else 0
+            )
+
+            print("  ✅ Archive created successfully!")
+            print(f"     📊 Files: {file_count}")
+            print(f"     📏 Original size: {total_size / (1024 * 1024):.1f} MB")
+            print(f"     🗜️  Compressed size: {archive_size / (1024 * 1024):.1f} MB")
+            print(f"     📉 Compression: {compression_ratio:.1f}%")
 
             # Create build report
             self.create_build_report(archive_name, commit_info, True)
 
             return str(archive_path)
 
-        except Exception:
+        except Exception as e:
+            print(f"❌ Failed to create archive: {e}")
             return None
 
     def create_build_report(
