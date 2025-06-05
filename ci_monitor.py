@@ -144,10 +144,60 @@ class CIMonitor:
         # If all methods fail, assume 0% usage
         return 0.0
 
+    def test_github_access(self) -> bool:
+        """Test GitHub API access and repository existence"""
+        if not requests or not self.github_token:
+            return False
+
+        try:
+            # Test repository access
+            repo_url = (
+                f"https://api.github.com/repos/{self.github_owner}/{self.github_repo}"
+            )
+            headers = {
+                "Authorization": f"token {self.github_token}",
+                "Accept": "application/vnd.github.v3+json",
+            }
+
+            print(f"Testing GitHub access to {self.github_owner}/{self.github_repo}...")
+            response = requests.get(repo_url, headers=headers)
+
+            if response.status_code == 200:
+                repo_data = response.json()
+                print(f"✅ Repository found: {repo_data.get('full_name')}")
+                print(f"   Private: {repo_data.get('private', False)}")
+                return True
+            elif response.status_code == 404:
+                print(
+                    f"❌ Repository not found: {self.github_owner}/{self.github_repo}"
+                )
+                print("   Check if the repository name and owner are correct")
+                return False
+            elif response.status_code == 401:
+                print("❌ Authentication failed - check your GitHub token")
+                return False
+            elif response.status_code == 403:
+                print("❌ Access forbidden - token may lack required permissions")
+                return False
+            else:
+                print(
+                    f"❌ Unexpected response: {response.status_code} - {response.text}"
+                )
+                return False
+
+        except Exception as e:
+            print(f"❌ GitHub access test failed: {e}")
+            return False
+
     def upload_to_github(self, archive_path: str, commit_info: Dict[str, Any]) -> bool:
         """Upload build artifact to GitHub releases"""
         if not requests or not self.github_token:
             print("⚠️ GitHub upload skipped - requests library or token not available")
+            return False
+
+        # Test access first
+        if not self.test_github_access():
+            print("❌ GitHub access test failed, skipping upload")
             return False
 
         try:
@@ -158,8 +208,10 @@ class CIMonitor:
             release_name = f"Build {timestamp} ({commit_short})"
 
             # Create release
-            release_url = f"https://api.github.com/repos/{self.github_owner}/"
-            f"{self.github_repo}/releases"
+            release_url = (
+                f"https://api.github.com/repos/{self.github_owner}/"
+                f"{self.github_repo}/releases"
+            )
             release_data = {
                 "tag_name": tag_name,
                 "name": release_name,
@@ -267,9 +319,10 @@ class CIMonitor:
                 }
 
                 for release in releases_to_delete:
-                    delete_url = "https://api.github.com/repos/"
-                    f"{self.github_owner}/{self.github_repo}/releases/"
-                    f"{release['id']}"
+                    delete_url = (
+                        f"https://api.github.com/repos/{self.github_owner}/"
+                        f"{self.github_repo}/releases/{release['id']}"
+                    )
                     response = requests.delete(delete_url, headers=headers)
 
                     if response.status_code == 204:
