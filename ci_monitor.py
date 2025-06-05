@@ -692,17 +692,18 @@ class CIMonitor:
             print(f"✅ CI pipeline completed successfully for commit {commit_short}")
 
             # Upload to GitHub if configured
+            github_success = True  # Default to success if no GitHub token
             if self.github_token:
                 print("Uploading to GitHub...")
                 github_success = self.upload_to_github(archive_path, commit_info)
                 if github_success:
-                    print("✅ GitHub upload completed")
+                    print("✅ GitHub upload and cleanup completed")
                 else:
-                    print("⚠️ GitHub upload failed, but build archive created locally")
+                    print("❌ GitHub upload failed")
             else:
                 print("ℹ️ GitHub upload skipped (no token configured)")
 
-            return True
+            return github_success
         else:
             print("❌ CI pipeline failed at archiving stage")
             self.create_build_report("", commit_info, False)
@@ -729,8 +730,14 @@ class CIMonitor:
             if self.process_commit(current_commit):
                 self.last_commit_hash = current_commit
                 self.save_state()
+                print(
+                    f"✅ Commit {current_commit[:8]} fully processed and marked as complete"
+                )
                 return True
             else:
+                print(
+                    f"❌ Commit {current_commit[:8]} processing failed - will retry on next check"
+                )
                 return False
 
         return False
