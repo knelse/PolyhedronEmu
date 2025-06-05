@@ -16,7 +16,7 @@ def run_all_tests():
     """Run all test suites and return results."""
     loader = unittest.TestLoader()
     test_dir = os.path.dirname(os.path.abspath(__file__))
-    suite = loader.discover(test_dir, pattern='test_*.py')
+    suite = loader.discover(test_dir, pattern="test_*.py")
     runner = unittest.TextTestRunner(verbosity=2, buffer=True)
     result = runner.run(suite)
     return result
@@ -24,13 +24,13 @@ def run_all_tests():
 
 def print_summary(result):
     """Print a summary of test results."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST SUMMARY")
-    print("="*70)
+    print("=" * 70)
     total_tests = result.testsRun
     failures = len(result.failures)
     errors = len(result.errors)
-    skipped = len(result.skipped) if hasattr(result, 'skipped') else 0
+    skipped = len(result.skipped) if hasattr(result, "skipped") else 0
     success_rate = (
         ((total_tests - failures - errors) / total_tests * 100)
         if total_tests > 0
@@ -50,13 +50,13 @@ def print_summary(result):
         print("\nERRORS:")
         for test, traceback in result.errors:
             print(f"- {test}")
-    print("="*70)
+    print("=" * 70)
     return result.wasSuccessful()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Running PolyhedronEmu Server Tests...")
-    print("="*70)
+    print("=" * 70)
     try:
         result = run_all_tests()
         success = print_summary(result)

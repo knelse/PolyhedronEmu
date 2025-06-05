@@ -461,6 +461,12 @@ class CIMonitor:
                 return True, "flake8 passed with no issues"
             else:
                 print("❌ flake8 failed")
+                print("--- flake8 output ---")
+                if result.stdout.strip():
+                    print(result.stdout)
+                if result.stderr.strip():
+                    print(result.stderr)
+                print("--- end flake8 output ---")
                 error_return = f"flake8 errors:\n{result.stdout}\n{result.stderr}"
                 return False, error_return
 
@@ -484,6 +490,12 @@ class CIMonitor:
                 return True, f"pytest passed:\n{result.stdout}"
             else:
                 print("❌ pytest failed")
+                print("--- pytest output ---")
+                if result.stdout.strip():
+                    print(result.stdout)
+                if result.stderr.strip():
+                    print(result.stderr)
+                print("--- end pytest output ---")
                 error_return = f"pytest failed:\n{result.stdout}\n{result.stderr}"
                 return False, error_return
 
