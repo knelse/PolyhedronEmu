@@ -150,8 +150,8 @@ function Build-Project {
             Write-Host "  ✅ Copied server modules (excluding .tmp/.TMP files)" -ForegroundColor Green
         }
         
-        # Copy all Python files from root (excluding test files and .tmp/.TMP files)
-        $pythonFiles = Get-ChildItem -Filter "*.py" -File | Where-Object { $_.Name -notlike "*test*" -and $_.Extension -notin @(".tmp", ".TMP") }
+        # Copy all Python files from root (excluding test files, ci_monitor.py, and .tmp/.TMP files)
+        $pythonFiles = Get-ChildItem -Filter "*.py" -File | Where-Object { $_.Name -notlike "*test*" -and $_.Name -ne "ci_monitor.py" -and $_.Extension -notin @(".tmp", ".TMP") }
         foreach ($pyFile in $pythonFiles) {
             Copy-Item $pyFile.FullName "$BUILDS_DIR\" -Force
             Write-Host "  ✅ Copied $($pyFile.Name)" -ForegroundColor Green
