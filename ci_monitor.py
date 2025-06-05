@@ -337,8 +337,8 @@ class CIMonitor:
         cpu_usage = self.get_cpu_utilization()
         gpu_usage = self.get_gpu_utilization()
 
-        cpu_threshold = 10.0
-        gpu_threshold = 10.0
+        cpu_threshold = 25.0
+        gpu_threshold = 25.0
 
         if cpu_usage > cpu_threshold:
             return (
