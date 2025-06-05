@@ -5,7 +5,7 @@ from datetime import datetime
 
 
 class ServerLogger:
-    def __init__(self, name: str = 'TCPServer', log_dir: str = 'logs'):
+    def __init__(self, name: str = "TCPServer", log_dir: str = "logs"):
         self.logger = self._setup_logger(name, log_dir)
 
     def _setup_logger(self, name: str, log_dir: str) -> logging.Logger:
@@ -23,15 +23,15 @@ class ServerLogger:
             if logger.handlers:
                 return logger
 
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f'{log_dir}/server_{timestamp}.log'
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{log_dir}/server_{timestamp}.log"
             fh = logging.FileHandler(filename)
             fh.setLevel(logging.DEBUG)
 
             ch = logging.StreamHandler()
-            ch.setLevel(logging.INFO)
+            ch.setLevel(logging.DEBUG)
 
-            fmt = '%(asctime)s - %(levelname)s - %(message)s'
+            fmt = "%(asctime)s - %(levelname)s - %(message)s"
             formatter = logging.Formatter(fmt)
             fh.setFormatter(formatter)
             ch.setFormatter(formatter)
@@ -50,8 +50,9 @@ class ServerLogger:
                 basic_logger.addHandler(logging.StreamHandler())
             return basic_logger
 
-    def log_exception(self, message: str, exc: Exception,
-                      level: int = logging.ERROR) -> None:
+    def log_exception(
+        self, message: str, exc: Exception, level: int = logging.ERROR
+    ) -> None:
         """
         Log an exception with a custom message and full traceback.
 
@@ -76,7 +77,6 @@ class ServerLogger:
         self.logger.error(msg)
 
 
-def create_logger(name: str = 'TCPServer',
-                  log_dir: str = 'logs') -> ServerLogger:
+def create_logger(name: str = "TCPServer", log_dir: str = "logs") -> ServerLogger:
     """Create and return a new ServerLogger instance."""
     return ServerLogger(name, log_dir)
