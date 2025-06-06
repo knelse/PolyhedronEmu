@@ -3,9 +3,9 @@ import unittest
 import threading
 from unittest.mock import MagicMock, patch
 
-sys.modules['py4godot'] = MagicMock()
-sys.modules['py4godot.classes'] = MagicMock()
-sys.modules['py4godot.classes.Node3D'] = MagicMock()
+sys.modules["py4godot"] = MagicMock()
+sys.modules["py4godot.classes"] = MagicMock()
+sys.modules["py4godot.classes.Node3D"] = MagicMock()
 
 from server.client_handler import ClientHandler  # noqa: E402
 from server.logger import ServerLogger  # noqa: E402
@@ -15,6 +15,7 @@ from server.packets import INIT_PACKET  # noqa: E402
 
 class MockNode3D:
     """Mock Node3D for testing."""
+
     def __init__(self):
         self.name = ""
         self.children = []
@@ -35,15 +36,27 @@ class MockNode3D:
 
 class MockSocket:
     """Mock socket for testing."""
+
     def __init__(self):
         self.sent_data = []
         self.closed = False
         self.should_fail_send = False
+        self.recv_data = b""
 
     def send(self, data):
         if self.should_fail_send:
             raise ConnectionError("Send failed")
         self.sent_data.append(data)
+
+    def recv(self, size):
+        if self.recv_data:
+            data = self.recv_data
+            self.recv_data = b""
+            return data
+        return b""
+
+    def settimeout(self, timeout):
+        pass  # Mock implementation
 
     def close(self):
         self.closed = True
@@ -59,9 +72,7 @@ class TestClientHandler(unittest.TestCase):
         self.mock_parent_node = MockNode3D()
 
         self.client_handler = ClientHandler(
-            self.mock_logger,
-            self.mock_player_manager,
-            self.mock_parent_node
+            self.mock_logger, self.mock_player_manager, self.mock_parent_node
         )
 
     def test_initialization(self):
@@ -70,7 +81,7 @@ class TestClientHandler(unittest.TestCase):
         self.assertEqual(len(self.client_handler.client_nodes), 0)
         self.assertIsNotNone(self.client_handler.state_manager)
 
-    @patch('socket.socket')
+    @patch("socket.socket")
     def test_start_handling_accept_connection(self, mock_socket_class):
         """Test handling new client connection."""
         mock_server_socket = MagicMock()
@@ -91,7 +102,7 @@ class TestClientHandler(unittest.TestCase):
 
         handler_thread = threading.Thread(
             target=self.client_handler.start_handling,
-            args=(mock_server_socket, mock_is_running)
+            args=(mock_server_socket, mock_is_running),
         )
         handler_thread.start()
         handler_thread.join(timeout=1)
@@ -100,13 +111,13 @@ class TestClientHandler(unittest.TestCase):
 
         self.mock_player_manager.get_next_player_index.assert_called_once()
         expected_call = (player_index, address)
-        self.mock_player_manager.add_player.assert_called_once_with(
-            *expected_call)
+        self.mock_player_manager.add_player.assert_called_once_with(*expected_call)
 
         self.assertIn(INIT_PACKET, mock_client_socket.sent_data)
 
-        expected_msg = (f"Sent init packet to player 0x{player_index:04X}: "
-                        f"{INIT_PACKET.hex()}")
+        expected_msg = (
+            f"Sent init packet to player 0x{player_index:04X}: " f"{INIT_PACKET.hex()}"
+        )
         self.mock_logger.debug.assert_any_call(expected_msg)
 
     def test_reject_connection_max_players(self):
@@ -129,14 +140,15 @@ class TestClientHandler(unittest.TestCase):
 
         handler_thread = threading.Thread(
             target=self.client_handler.start_handling,
-            args=(mock_server_socket, mock_is_running)
+            args=(mock_server_socket, mock_is_running),
         )
         handler_thread.start()
         handler_thread.join(timeout=1)
 
         self.assertTrue(mock_client_socket.closed)
-        expected_msg = (f"Rejecting connection from {address}: "
-                        f"Maximum players reached")
+        expected_msg = (
+            f"Rejecting connection from {address}: " f"Maximum players reached"
+        )
         self.mock_logger.warning.assert_called_with(expected_msg)
 
     def test_init_packet_send_failure(self):
@@ -160,7 +172,7 @@ class TestClientHandler(unittest.TestCase):
 
         handler_thread = threading.Thread(
             target=self.client_handler.start_handling,
-            args=(mock_server_socket, mock_is_running)
+            args=(mock_server_socket, mock_is_running),
         )
         handler_thread.start()
         handler_thread.join(timeout=1)
@@ -173,7 +185,7 @@ class TestClientHandler(unittest.TestCase):
         player_index = 0x5000
         expected_name = f"Player_{player_index:04X}"
 
-        with patch('server.client_handler.Node3D') as mock_node_class:
+        with patch("server.client_handler.Node3D") as mock_node_class:
             mock_node = MockNode3D()
             mock_node_class.return_value = mock_node
 
@@ -195,14 +207,14 @@ class TestClientHandler(unittest.TestCase):
 
             handler_thread = threading.Thread(
                 target=self.client_handler.start_handling,
-                args=(mock_server_socket, mock_is_running)
+                args=(mock_server_socket, mock_is_running),
             )
             handler_thread.start()
             handler_thread.join(timeout=1)
 
             self.assertEqual(mock_node.name, expected_name)
 
-    def test_handle_client_echo(self):
+    def test_handle_client_communication(self):
         """Test client message handling (echo functionality)."""
         mock_socket = MagicMock()
         address = ("127.0.0.1", 12345)
@@ -215,8 +227,8 @@ class TestClientHandler(unittest.TestCase):
             return True
 
         client_thread = threading.Thread(
-            target=self.client_handler.handle_client,
-            args=(mock_socket, address, player_index, mock_is_running)
+            target=self.client_handler._handle_client_communication,
+            args=(mock_socket, address, player_index, mock_is_running),
         )
         client_thread.start()
         client_thread.join(timeout=1)
@@ -242,8 +254,8 @@ class TestClientHandler(unittest.TestCase):
             return True
 
         client_thread = threading.Thread(
-            target=self.client_handler.handle_client,
-            args=(mock_socket, address, player_index, mock_is_running)
+            target=self.client_handler._handle_client_communication,
+            args=(mock_socket, address, player_index, mock_is_running),
         )
         client_thread.start()
         client_thread.join(timeout=1)
@@ -291,14 +303,36 @@ class TestClientHandler(unittest.TestCase):
         self.assertIsNotNone(self.client_handler.state_manager)
 
         state_mgr = self.client_handler.state_manager
-        with patch.object(state_mgr, 'add_client') as mock_add:
-            transition_method = 'transition_to_init_ready'
+        with patch.object(state_mgr, "add_client") as mock_add:
+            transition_method = "transition_to_init_ready"
             with patch.object(state_mgr, transition_method) as mock_transition:
                 mock_transition.return_value = True
 
                 mock_server_socket = MagicMock()
                 mock_client_socket = MockSocket()
                 address = ("127.0.0.1", 12345)
+
+                # Create a mock login packet (longer than 12 bytes)
+                # Include header (18 bytes) + some login data
+                header = b"\x00" * 18
+                login_data = (
+                    b"user\x01password\x00"  # login + delimiter + password + terminator
+                )
+                mock_login_packet = header + login_data
+
+                # Mock the recv method to return the login packet when called
+                mock_client_socket.recv_data_queue = [mock_login_packet]
+                original_recv = mock_client_socket.recv
+
+                def mock_recv(size):
+                    if (
+                        hasattr(mock_client_socket, "recv_data_queue")
+                        and mock_client_socket.recv_data_queue
+                    ):
+                        return mock_client_socket.recv_data_queue.pop(0)
+                    return original_recv(size)
+
+                mock_client_socket.recv = mock_recv
 
                 accept_result = (mock_client_socket, address)
                 mock_server_socket.accept.return_value = accept_result
@@ -314,14 +348,28 @@ class TestClientHandler(unittest.TestCase):
 
                 handler_thread = threading.Thread(
                     target=self.client_handler.start_handling,
-                    args=(mock_server_socket, mock_is_running)
+                    args=(mock_server_socket, mock_is_running),
                 )
                 handler_thread.start()
                 handler_thread.join(timeout=1)
+
+                # Since client operations now happen asynchronously, we need to wait
+                # for the client thread to complete its initialization
+                import time
+
+                max_wait = 5.0  # Increased wait time for authentication flow
+                wait_interval = 0.1  # Check interval
+                elapsed = 0
+
+                while elapsed < max_wait:
+                    if mock_add.called and mock_transition.called:
+                        break
+                    time.sleep(wait_interval)
+                    elapsed += wait_interval
 
                 mock_add.assert_called_with(player_index)
                 mock_transition.assert_called_with(player_index)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
