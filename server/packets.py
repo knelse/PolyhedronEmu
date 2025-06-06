@@ -264,5 +264,19 @@ class ServerPackets:
         )
         return stream.to_bytes()
 
+    def character_name_already_taken(player_index: int) -> bytes:
+        stream = SimpleBitStream()
+        stream.write_bytes(bytes([0x0E, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
+        stream.write_int(player_index, 16)
+        stream.write_bytes(bytes([0x08, 0x40, 0x00, 0x01, 0x00]))
+        return stream.to_bytes()
+
+    def character_name_check_success(player_index: int) -> bytes:
+        stream = SimpleBitStream()
+        stream.write_bytes(bytes([0x0E, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
+        stream.write_int(player_index, 16)
+        stream.write_bytes(bytes([0x08, 0x40, 0x80, 0x00, 0x00]))
+        return stream.to_bytes()
+
 
 INIT_PACKET = ServerPackets.INIT_PACKET

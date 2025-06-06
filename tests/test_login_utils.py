@@ -198,13 +198,13 @@ class TestLoginUtils(unittest.TestCase):
         self.assertEqual(result_login, bytearray())
         self.assertEqual(result_password, bytearray())
 
-    def test_win1251_characters(self):
-        """Test with win-1251 encoded characters (Cyrillic)."""
+    def test_cp1251_characters(self):
+        """Test with cp1251 encoded characters (Cyrillic)."""
         header = b"\x00" * 18
-        # Using some win-1251 encoded Cyrillic characters as bytes
-        login = b"\xef\xf0\xe8\xe2\xe5\xf2"  # "привет" in win-1251
+        # Using some cp1251 encoded Cyrillic characters as bytes
+        login = b"\xef\xf0\xe8\xe2\xe5\xf2"  # "привет" in cp1251
         delimiter = b"\x01"
-        password = b"\xef\xe0\xf0\xee\xeb\xfc"  # "пароль" in win-1251
+        password = b"\xef\xe0\xf0\xee\xeb\xfc"  # "пароль" in cp1251
         terminator = b"\x00"
 
         data = header + login + delimiter + password + terminator
@@ -337,9 +337,9 @@ class TestLoginUtils(unittest.TestCase):
         self.assertEqual(result_login, "P")
         self.assertEqual(result_password, "q")
 
-    def test_decrypt_preserves_win1251_encoding(self):
-        """Test that decryption properly handles win-1251 encoding."""
-        # Test with bytes that should produce valid win-1251 characters
+    def test_decrypt_preserves_cp1251_encoding(self):
+        """Test that decryption properly handles cp1251 encoding."""
+        # Test with bytes that should produce valid cp1251 characters
         login_bytes = bytearray([67])  # Should produce a basic ASCII character
         password_bytes = bytearray([67])
 
@@ -347,7 +347,7 @@ class TestLoginUtils(unittest.TestCase):
             login_bytes, password_bytes
         )
 
-        # Verify we can encode/decode with win-1251 or compatible encoding
+        # Verify we can encode/decode with cp1251 or compatible encoding
         try:
             result_login.encode("cp1251")
             result_password.encode("cp1251")

@@ -2,6 +2,7 @@ import socket
 import threading
 import time
 from typing import Callable
+from data_models.client_character import ClientCharacter
 from py4godot.classes.Node3D import Node3D
 from server.logger import ServerLogger
 from server.player_manager import PlayerManager
@@ -202,6 +203,12 @@ class ClientHandler:
                 self._cleanup_client(client_socket, player_index)
                 return
 
+            character_selected = self._wait_for_character_selection(
+                client_socket, player_index
+            )
+            if not character_selected:
+                return
+
             self._handle_client_communication(
                 client_socket, address, player_index, is_running
             )
@@ -319,6 +326,82 @@ class ClientHandler:
             self.logger.log_exception(msg, e)
             return None
 
+    def _wait_for_character_selection(
+        self, client_socket: socket.socket, player_index: int
+    ) -> bool:
+        """
+        Wait for client to select a character in the character selection loop.
+
+        Args:
+            client_socket: The client's socket connection
+            player_index: The player's index for logging
+
+        Returns:
+            True if character selection was successful, False if client should be cleaned up
+        """
+        try:
+            client_socket.settimeout(86400.0)  # we can wait
+
+            while True:
+                data = client_socket.recv(1024)
+                if not data:
+                    self.logger.warning(
+                        f"Player 0x{player_index:04X} disconnected during character selection"
+                    )
+                    self._cleanup_client(client_socket, player_index)
+                    return False
+
+                msg = f"Received packet from player 0x{player_index:04X}: {data.hex().upper()}"
+                self.logger.debug(msg)
+
+                if len(data) > 0 and data[0] == 0x2A:
+                    self.logger.debug("Requested character delete")
+                    self._cleanup_client(client_socket, player_index)
+                    return False
+
+                if len(data) < 17:
+                    continue
+
+                if (
+                    data[0] < 0x1B
+                    or data[13] != 0x08
+                    or data[14] != 0x40
+                    or data[15] != 0x80
+                    or data[16] != 0x05
+                ):
+                    continue
+
+                success_packet = ServerPackets.character_name_check_success(
+                    player_index
+                )
+                send_packet_success = SocketUtils.send(
+                    client_socket,
+                    success_packet,
+                    player_index,
+                    self.logger,
+                    f"Sent character name check success to player "
+                    f"0x{player_index:04X}: {success_packet.hex().upper()}",
+                )
+                if not send_packet_success:
+                    self._cleanup_client(client_socket, player_index)
+                    return False
+
+                msg = f"Character selection completed for player 0x{player_index:04X}"
+                self.logger.info(msg)
+                return True
+
+        except socket.timeout:
+            self.logger.warning(
+                f"Timeout waiting for character selection from player 0x{player_index:04X}"
+            )
+            self._cleanup_client(client_socket, player_index)
+            return False
+        except Exception as e:
+            msg = f"Error waiting for character selection from player 0x{player_index:04X}"
+            self.logger.log_exception(msg, e)
+            self._cleanup_client(client_socket, player_index)
+            return False
+
     def _create_triple_character_data(self, player_index: int) -> bytes:
         """
         Create a packet containing 3x get_new_character_data back-to-back without separators.
@@ -329,9 +412,23 @@ class ClientHandler:
         Returns:
             Combined packet data
         """
-        char_data1 = ServerPackets.get_new_character_data(player_index)
-        char_data2 = ServerPackets.get_new_character_data(player_index)
-        char_data3 = ServerPackets.get_new_character_data(player_index)
+        character_1 = ClientCharacter()
+        character_1.player_index = player_index
+        character_2 = ClientCharacter()
+        character_2.player_index = player_index
+        character_2.name = "Test2"
+        character_3 = ClientCharacter()
+        character_3.player_index = player_index
+        character_3.name = "Test3"
+        char_data1 = (
+            character_1.to_character_list_bytearray()
+        )  # ServerPackets.get_new_character_data(player_index)
+        char_data2 = (
+            character_2.to_character_list_bytearray()
+        )  # ServerPackets.get_new_character_data(player_index)
+        char_data3 = (
+            character_3.to_character_list_bytearray()
+        )  # ServerPackets.get_new_character_data(player_index)
 
         # Combine all three packets without separators
         combined_packet = char_data1 + char_data2 + char_data3

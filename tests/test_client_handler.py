@@ -376,6 +376,85 @@ class TestClientHandler(unittest.TestCase):
                     player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
                 )
 
+    def test_character_selection_waiting_loop(self):
+        """Test character selection waiting loop functionality."""
+        player_index = 0x5000
+        mock_socket = MagicMock()
+
+        # Test 1: Character delete request (starts with 0x2A)
+        delete_packet = b"\x2a" + b"\x00" * 16
+        mock_socket.recv.return_value = delete_packet
+
+        with patch.object(self.client_handler, "_cleanup_client") as mock_cleanup:
+            result = self.client_handler._wait_for_character_selection(
+                mock_socket, player_index
+            )
+
+            self.assertFalse(result)
+            mock_cleanup.assert_called_once_with(mock_socket, player_index)
+            self.mock_logger.debug.assert_any_call("Requested character delete")
+
+    def test_character_selection_invalid_packet(self):
+        """Test character selection with invalid packet conditions."""
+        player_index = 0x5000
+        mock_socket = MagicMock()
+
+        # Test invalid packet: buffer[0] < 0x1B
+        invalid_packet = b"\x1a" + b"\x00" * 16
+        valid_packet = b"\x1b" + b"\x00" * 12 + b"\x08\x40\x80\x05"
+
+        # Return invalid packet first, then valid packet
+        mock_socket.recv.side_effect = [invalid_packet, valid_packet]
+
+        with patch(
+            "server.packets.ServerPackets.character_name_check_success"
+        ) as mock_success:
+            with patch("utils.socket_utils.SocketUtils.send") as mock_send:
+                mock_success.return_value = b"success_packet"
+                mock_send.return_value = True
+
+                result = self.client_handler._wait_for_character_selection(
+                    mock_socket, player_index
+                )
+
+                self.assertTrue(result)
+                mock_success.assert_called_once_with(player_index)
+                mock_send.assert_called_once()
+
+    def test_character_selection_valid_packet(self):
+        """Test character selection with valid packet."""
+        player_index = 0x5000
+        mock_socket = MagicMock()
+
+        # Valid packet: buffer[0] >= 0x1B and specific byte patterns
+        valid_packet = b"\x1b" + b"\x00" * 12 + b"\x08\x40\x80\x05"
+        mock_socket.recv.return_value = valid_packet
+
+        with patch(
+            "server.packets.ServerPackets.character_name_check_success"
+        ) as mock_success:
+            with patch("utils.socket_utils.SocketUtils.send") as mock_send:
+                mock_success.return_value = b"success_packet"
+                mock_send.return_value = True
+
+                result = self.client_handler._wait_for_character_selection(
+                    mock_socket, player_index
+                )
+
+                self.assertTrue(result)
+                mock_success.assert_called_once_with(player_index)
+                mock_send.assert_called_once_with(
+                    mock_socket,
+                    b"success_packet",
+                    player_index,
+                    self.mock_logger,
+                    f"Sent character name check success to player "
+                    f"0x{player_index:04X}: {b'success_packet'.hex().upper()}",
+                )
+                self.mock_logger.info.assert_any_call(
+                    f"Character selection completed for player 0x{player_index:04X}"
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
