@@ -6,9 +6,12 @@ from server.logger import ServerLogger
 
 class ClientState(Enum):
     """Enumeration of possible client states."""
-    BASE = "base"
-    INIT_READY_FOR_INITIAL_DATA = "init_ready_for_initial_data"
-    IN_GAME = "in_game"
+
+    BASE = 0
+    INIT_WAITING_FOR_LOGIN_DATA = 1
+    INIT_WAITING_FOR_CHARACTER_SELECT = 2
+    INIT_READY_FOR_INITIAL_DATA = 3
+    IN_GAME = 4
 
 
 class ClientStateManager:
@@ -29,8 +32,10 @@ class ClientStateManager:
         """
         with self._state_lock:
             self._client_states[player_index] = ClientState.BASE
-            msg = (f"Client 0x{player_index:04X} added with state: "
-                   f"{ClientState.BASE.value}")
+            msg = (
+                f"Client 0x{player_index:04X} added with state: "
+                f"{ClientState.BASE.name.lower()}"
+            )
             self.logger.info(msg)
 
     def remove_client(self, player_index: int) -> None:
@@ -44,12 +49,13 @@ class ClientStateManager:
             if player_index in self._client_states:
                 old_state = self._client_states[player_index]
                 del self._client_states[player_index]
-                msg = (f"Client 0x{player_index:04X} removed from state "
-                       f"tracking (was in {old_state.value})")
+                msg = (
+                    f"Client 0x{player_index:04X} removed from state "
+                    f"tracking (was in {old_state.name.lower()})"
+                )
                 self.logger.info(msg)
 
-    def set_client_state(self, player_index: int,
-                         new_state: ClientState) -> bool:
+    def set_client_state(self, player_index: int, new_state: ClientState) -> bool:
         """
         Set a client's state.
 
@@ -62,8 +68,10 @@ class ClientStateManager:
         """
         with self._state_lock:
             if player_index not in self._client_states:
-                msg = (f"Attempted to set state for unknown client "
-                       f"0x{player_index:04X}")
+                msg = (
+                    f"Attempted to set state for unknown client "
+                    f"0x{player_index:04X}"
+                )
                 self.logger.warning(msg)
                 return False
 
@@ -71,8 +79,10 @@ class ClientStateManager:
             self._client_states[player_index] = new_state
 
             if old_state != new_state:
-                msg = (f"Client 0x{player_index:04X} state changed: "
-                       f"{old_state.value} -> {new_state.value}")
+                msg = (
+                    f"Client 0x{player_index:04X} state changed: "
+                    f"{old_state.name.lower()} -> {new_state.name.lower()}"
+                )
                 self.logger.info(msg)
 
             return True
@@ -90,12 +100,14 @@ class ClientStateManager:
         with self._state_lock:
             return self._client_states.get(player_index)
 
-    def transition_to_init_ready(self, player_index: int) -> bool:
+    def transition_state(self, player_index: int, new_state: ClientState) -> bool:
         """
-        Transition a client from base state to init_ready_for_initial_data.
+        Transition a client from their current state to a new state.
+        Validates that the transition follows the expected sequential order.
 
         Args:
             player_index: The player's unique index
+            new_state: The new state to transition to
 
         Returns:
             True if transition was successful, False otherwise
@@ -104,51 +116,26 @@ class ClientStateManager:
             current_state = self._client_states.get(player_index)
 
             if current_state is None:
-                msg = (f"Cannot transition unknown client "
-                       f"0x{player_index:04X} to init ready")
+                msg = (
+                    f"Cannot transition unknown client "
+                    f"0x{player_index:04X} to {new_state.name.lower()}"
+                )
                 self.logger.warning(msg)
                 return False
 
-            if current_state != ClientState.BASE:
-                msg = (f"Client 0x{player_index:04X} cannot transition to "
-                       f"init ready from {current_state.value}")
+            if new_state.value != current_state.value + 1:
+                msg = (
+                    f"Client 0x{player_index:04X} cannot transition from "
+                    f"{current_state.name.lower()} to {new_state.name.lower()}"
+                )
                 self.logger.warning(msg)
                 return False
 
-            state = ClientState.INIT_READY_FOR_INITIAL_DATA
-            self._client_states[player_index] = state
-            msg = (f"Client 0x{player_index:04X} transitioned to "
-                   f"init ready state")
-            self.logger.info(msg)
-            return True
-
-    def transition_to_game(self, player_index: int) -> bool:
-        """
-        Transition a client from init_ready_for_initial_data to in_game.
-
-        Args:
-            player_index: The player's unique index
-
-        Returns:
-            True if transition was successful, False otherwise
-        """
-        with self._state_lock:
-            current_state = self._client_states.get(player_index)
-
-            if current_state is None:
-                msg = (f"Cannot transition unknown client "
-                       f"0x{player_index:04X} to game")
-                self.logger.warning(msg)
-                return False
-
-            if current_state != ClientState.INIT_READY_FOR_INITIAL_DATA:
-                msg = (f"Client 0x{player_index:04X} cannot transition to "
-                       f"game from {current_state.value}")
-                self.logger.warning(msg)
-                return False
-
-            self._client_states[player_index] = ClientState.IN_GAME
-            msg = f"Client 0x{player_index:04X} transitioned to game state"
+            self._client_states[player_index] = new_state
+            msg = (
+                f"Client 0x{player_index:04X} transitioned to "
+                f"{new_state.name.lower()}"
+            )
             self.logger.info(msg)
             return True
 
@@ -163,9 +150,11 @@ class ClientStateManager:
             List of player indices in the specified state
         """
         with self._state_lock:
-            return [player_index for player_index, client_state
-                    in self._client_states.items()
-                    if client_state == state]
+            return [
+                player_index
+                for player_index, client_state in self._client_states.items()
+                if client_state == state
+            ]
 
     def get_all_client_states(self) -> Dict[int, ClientState]:
         """
@@ -188,5 +177,8 @@ class ClientStateManager:
             Number of clients in the specified state
         """
         with self._state_lock:
-            return sum(1 for client_state in self._client_states.values()
-                       if client_state == state)
+            return sum(
+                1
+                for client_state in self._client_states.values()
+                if client_state == state
+            )

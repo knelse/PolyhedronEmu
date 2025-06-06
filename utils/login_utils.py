@@ -174,6 +174,6 @@ def get_login_data_info(data: bytes) -> dict:
         "data_section_length": len(data) - 18,
         "delimiter_positions": delimiter_positions,
         "terminator_positions": terminator_positions,
-        "header_bytes": data[:18].hex(),
-        "data_section_hex": data[18:].hex() if len(data) > 18 else "",
+        "header_bytes": data[:18].hex().upper(),
+        "data_section_hex": data[18:].hex().upper() if len(data) > 18 else "",
     }

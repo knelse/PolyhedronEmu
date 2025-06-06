@@ -5,12 +5,13 @@ from typing import Callable
 from py4godot.classes.Node3D import Node3D
 from server.logger import ServerLogger
 from server.player_manager import PlayerManager
-from server.client_state_manager import ClientStateManager
+from server.client_state_manager import ClientStateManager, ClientState
 from server.packets import INIT_PACKET, ServerPackets
 from utils.login_utils import (
     get_encrypted_login_and_password,
     decrypt_login_and_password,
 )
+from utils.socket_utils import SocketUtils
 
 
 class ClientHandler:
@@ -105,91 +106,99 @@ class ClientHandler:
             )
             self.logger.info(msg)
 
-            try:
-                client_socket.send(INIT_PACKET)
-                msg = (
-                    f"Sent init packet to player "
-                    f"0x{player_index:04X}: {INIT_PACKET.hex()}"
-                )
-                self.logger.debug(msg)
+            send_packet_success = SocketUtils.send(
+                client_socket,
+                INIT_PACKET,
+                player_index,
+                self.logger,
+                f"Sent init packet to player 0x{player_index:04X}: {INIT_PACKET.hex().upper()}",
+            )
+            if not send_packet_success:
+                self._cleanup_client(client_socket, player_index)
+                return
 
-            except Exception as e:
-                msg = f"Failed to send init packet to player 0x{player_index:04X}"
-                self.logger.log_exception(msg, e)
+            credentials_packet = ServerPackets.get_server_credentials(player_index)
+            time.sleep(0.2)
+            send_packet_success = SocketUtils.send(
+                client_socket,
+                credentials_packet,
+                player_index,
+                self.logger,
+                f"Sent credentials to player 0x{player_index:04X}: "
+                f"{credentials_packet.hex().upper()}",
+            )
+            if not send_packet_success:
+                self._cleanup_client(client_socket, player_index)
+                return
+
+            state_change_success = self.state_manager.transition_state(
+                player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
+            )
+            if not state_change_success:
+                self._cleanup_client(client_socket, player_index)
+                return
+
+            login_packet = self._wait_for_login_packet(client_socket, player_index)
+            if login_packet is None:
+                msg = f"Failed to receive login packet from player 0x{player_index:04X}"
+                self.logger.warning(msg)
                 self._cleanup_client(client_socket, player_index)
                 return
 
             try:
-                credentials_packet = ServerPackets.get_server_credentials(player_index)
-                time.sleep(0.2)
-                client_socket.send(credentials_packet)
+                login_bytes, password_bytes = get_encrypted_login_and_password(
+                    login_packet
+                )
+                decrypted_login, decrypted_password = decrypt_login_and_password(
+                    login_bytes, password_bytes
+                )
                 msg = (
-                    f"Sent credentials to player "
-                    f"0x{player_index:04X}: {credentials_packet.hex()}"
+                    f"Player 0x{player_index:04X} login attempt: "
+                    f"login_length={len(login_bytes)}, password_length={len(password_bytes)}, "
+                    f"login={decrypted_login}, password={decrypted_password}"
                 )
-                self.logger.debug(msg)
-
-                # Wait for client login packet (longer than 12 bytes)
-                login_packet = self._wait_for_login_packet(client_socket, player_index)
-                if login_packet is None:
-                    msg = f"Failed to receive login packet from player 0x{player_index:04X}"
-                    self.logger.warning(msg)
-                    self._cleanup_client(client_socket, player_index)
-                    return
-
-                # Decode login and password
-                try:
-                    login_bytes, password_bytes = get_encrypted_login_and_password(
-                        login_packet
-                    )
-                    decrypted_login, decrypted_password = decrypt_login_and_password(
-                        login_bytes, password_bytes
-                    )
-                    msg = (
-                        f"Player 0x{player_index:04X} login attempt: "
-                        f"login_length={len(login_bytes)}, password_length={len(password_bytes)}, "
-                        f"login={decrypted_login}, password={decrypted_password}"
-                    )
-                    self.logger.info(msg)
-                except Exception as e:
-                    msg = f"Failed to decode login data for player 0x{player_index:04X}"
-                    self.logger.log_exception(msg, e)
-                    self._cleanup_client(client_socket, player_index)
-                    return
-
-                # Send character select start data
-                time.sleep(0.05)
-                char_select_packet = ServerPackets.get_character_select_start_data(
-                    player_index
-                )
-                client_socket.send(char_select_packet)
-                msg = (
-                    f"Sent character select start to player "
-                    f"0x{player_index:04X}: {char_select_packet.hex()}"
-                )
-                self.logger.debug(msg)
-
-                # Send 3x new character data back-to-back
-                time.sleep(0.1)
-                char_data_packet = self._create_triple_character_data(player_index)
-                client_socket.send(char_data_packet)
-                msg = (
-                    f"Sent triple character data to player "
-                    f"0x{player_index:04X}: {char_data_packet.hex()}"
-                )
-                self.logger.debug(msg)
-
-                success = self.state_manager.transition_to_init_ready(player_index)
-                if success:
-                    msg = (
-                        f"Player 0x{player_index:04X} successfully "
-                        f"authenticated and ready for character selection"
-                    )
-                    self.logger.info(msg)
-
+                self.logger.info(msg)
             except Exception as e:
-                msg = f"Failed to send credentials to player 0x{player_index:04X}"
+                msg = f"Failed to decode login data for player 0x{player_index:04X}"
                 self.logger.log_exception(msg, e)
+                self._cleanup_client(client_socket, player_index)
+                return
+
+            time.sleep(0.05)
+            char_select_packet = ServerPackets.get_character_select_start_data(
+                player_index
+            )
+            send_packet_success = SocketUtils.send(
+                client_socket,
+                char_select_packet,
+                player_index,
+                self.logger,
+                f"Sent character select start to player "
+                f"0x{player_index:04X}: {char_select_packet.hex().upper()}",
+            )
+            if not send_packet_success:
+                self._cleanup_client(client_socket, player_index)
+                return
+
+            # Send 3x new character data back-to-back
+            time.sleep(0.1)
+            char_data_packet = self._create_triple_character_data(player_index)
+            send_packet_success = SocketUtils.send(
+                client_socket,
+                char_data_packet,
+                player_index,
+                self.logger,
+                f"Sent triple character data to player "
+                f"0x{player_index:04X}: {char_data_packet.hex().upper()}",
+            )
+            if not send_packet_success:
+                self._cleanup_client(client_socket, player_index)
+                return
+
+            state_change_success = self.state_manager.transition_state(
+                player_index, ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
+            )
+            if not state_change_success:
                 self._cleanup_client(client_socket, player_index)
                 return
 
@@ -228,7 +237,7 @@ class ClientHandler:
 
             while is_running():
                 try:
-                    client_socket.settimeout(1.0)
+                    client_socket.settimeout(10.0)
                     data = client_socket.recv(1024)
 
                     if not data:
@@ -236,10 +245,18 @@ class ClientHandler:
                         self.logger.info(msg)
                         break
 
-                    msg = f"Received from player 0x{player_index:04X}: {data.hex()}"
+                    msg = f"Received from player 0x{player_index:04X}: {data.hex().upper()}"
                     self.logger.debug(msg)
 
-                    client_socket.send(data)
+                    send_packet_success = SocketUtils.send(
+                        client_socket,
+                        data,
+                        player_index,
+                        self.logger,
+                        f"Echoed data to player 0x{player_index:04X}: {data.hex().upper()}",
+                    )
+                    if not send_packet_success:
+                        break
 
                 except socket.timeout:
                     continue
@@ -281,7 +298,7 @@ class ClientHandler:
                     )
                     return None
 
-                msg = f"Received packet from player 0x{player_index:04X}: {data.hex()}"
+                msg = f"Received packet from player 0x{player_index:04X}: {data.hex().upper()}"
                 self.logger.debug(msg)
 
                 if len(data) > 12:

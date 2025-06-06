@@ -8,6 +8,7 @@ sys.modules["py4godot.classes"] = MagicMock()
 sys.modules["py4godot.classes.Node3D"] = MagicMock()
 
 from server.client_handler import ClientHandler  # noqa: E402
+from server.client_state_manager import ClientState  # noqa: E402
 from server.logger import ServerLogger  # noqa: E402
 from server.player_manager import PlayerManager  # noqa: E402
 from server.packets import INIT_PACKET  # noqa: E402
@@ -116,7 +117,8 @@ class TestClientHandler(unittest.TestCase):
         self.assertIn(INIT_PACKET, mock_client_socket.sent_data)
 
         expected_msg = (
-            f"Sent init packet to player 0x{player_index:04X}: " f"{INIT_PACKET.hex()}"
+            f"Sent init packet to player 0x{player_index:04X}: "
+            f"{INIT_PACKET.hex().upper()}"
         )
         self.mock_logger.debug.assert_any_call(expected_msg)
 
@@ -236,7 +238,7 @@ class TestClientHandler(unittest.TestCase):
         mock_socket.send.assert_called_with(test_data)
 
         self.mock_logger.debug.assert_any_call(
-            f"Received from player 0x{player_index:04X}: {test_data.hex()}"
+            f"Received from player 0x{player_index:04X}: {test_data.hex().upper()}"
         )
 
     def test_client_disconnect_cleanup(self):
@@ -304,8 +306,7 @@ class TestClientHandler(unittest.TestCase):
 
         state_mgr = self.client_handler.state_manager
         with patch.object(state_mgr, "add_client") as mock_add:
-            transition_method = "transition_to_init_ready"
-            with patch.object(state_mgr, transition_method) as mock_transition:
+            with patch.object(state_mgr, "transition_state") as mock_transition:
                 mock_transition.return_value = True
 
                 mock_server_socket = MagicMock()
@@ -368,7 +369,12 @@ class TestClientHandler(unittest.TestCase):
                     elapsed += wait_interval
 
                 mock_add.assert_called_with(player_index)
-                mock_transition.assert_called_with(player_index)
+
+                self.assertTrue(mock_transition.called)
+                # Verify the first transition call is to INIT_WAITING_FOR_LOGIN_DATA
+                mock_transition.assert_any_call(
+                    player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
+                )
 
 
 if __name__ == "__main__":

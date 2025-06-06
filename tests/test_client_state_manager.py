@@ -6,10 +6,10 @@ from unittest import TestCase
 import sys
 import os
 
-sys.modules['py4godot'] = Mock()
-sys.modules['py4godot.classes'] = Mock()
+sys.modules["py4godot"] = Mock()
+sys.modules["py4godot.classes"] = Mock()
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 class TestClientStateManager(TestCase):
@@ -28,9 +28,7 @@ class TestClientStateManager(TestCase):
         state = self.state_manager.get_client_state(self.player_index)
         self.assertEqual(state, ClientState.BASE)
 
-        expected_msg = (
-            f"Client 0x{self.player_index:04X} added with state: base"
-        )
+        expected_msg = f"Client 0x{self.player_index:04X} added with state: base"
         self.mock_logger.info.assert_called_with(expected_msg)
 
     def test_remove_client(self):
@@ -65,8 +63,7 @@ class TestClientStateManager(TestCase):
         self.assertEqual(state, ClientState.IN_GAME)
 
         expected_msg = (
-            f"Client 0x{self.player_index:04X} state changed: "
-            f"base -> in_game"
+            f"Client 0x{self.player_index:04X} state changed: " f"base -> in_game"
         )
         self.mock_logger.info.assert_called_with(expected_msg)
 
@@ -81,9 +78,7 @@ class TestClientStateManager(TestCase):
 
         # Should not log a state change since it's the same state
         # Only the add_client call should have logged
-        expected_msg = (
-            f"Client 0x{self.player_index:04X} added with state: base"
-        )
+        expected_msg = f"Client 0x{self.player_index:04X} added with state: base"
         self.mock_logger.info.assert_called_with(expected_msg)
 
     def test_set_client_state_unknown_client(self):
@@ -94,8 +89,7 @@ class TestClientStateManager(TestCase):
         self.assertFalse(result)
 
         expected_msg = (
-            f"Attempted to set state for unknown client "
-            f"0x{self.player_index:04X}"
+            f"Attempted to set state for unknown client " f"0x{self.player_index:04X}"
         )
         self.mock_logger.warning.assert_called_with(expected_msg)
 
@@ -109,28 +103,34 @@ class TestClientStateManager(TestCase):
         self.state_manager.add_client(player2)
         self.state_manager.add_client(player3)
 
-        self.state_manager.transition_to_init_ready(player2)
-        self.state_manager.transition_to_init_ready(player3)
-        self.state_manager.transition_to_game(player3)
+        # Sequential transitions: BASE -> LOGIN -> CHARACTER_SELECT
+        self.state_manager.transition_state(
+            player2, ClientState.INIT_WAITING_FOR_LOGIN_DATA
+        )
+        self.state_manager.transition_state(
+            player2, ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
+        )
 
-        base_clients = self.state_manager.get_clients_by_state(
-            ClientState.BASE
+        self.state_manager.transition_state(
+            player3, ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
-        init_clients = self.state_manager.get_clients_by_state(
-            ClientState.INIT_READY_FOR_INITIAL_DATA
+
+        base_clients = self.state_manager.get_clients_by_state(ClientState.BASE)
+        login_clients = self.state_manager.get_clients_by_state(
+            ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
-        game_clients = self.state_manager.get_clients_by_state(
-            ClientState.IN_GAME
+        char_select_clients = self.state_manager.get_clients_by_state(
+            ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
         )
 
         self.assertEqual(len(base_clients), 1)
         self.assertIn(player1, base_clients)
 
-        self.assertEqual(len(init_clients), 1)
-        self.assertIn(player2, init_clients)
+        self.assertEqual(len(login_clients), 1)
+        self.assertIn(player3, login_clients)
 
-        self.assertEqual(len(game_clients), 1)
-        self.assertIn(player3, game_clients)
+        self.assertEqual(len(char_select_clients), 1)
+        self.assertIn(player2, char_select_clients)
 
     def test_get_all_client_states(self):
         """Test getting all client states."""
@@ -139,14 +139,21 @@ class TestClientStateManager(TestCase):
 
         self.state_manager.add_client(player1)
         self.state_manager.add_client(player2)
-        self.state_manager.transition_to_init_ready(player2)
+
+        # Sequential transition: BASE -> LOGIN -> CHARACTER_SELECT
+        self.state_manager.transition_state(
+            player2, ClientState.INIT_WAITING_FOR_LOGIN_DATA
+        )
+        self.state_manager.transition_state(
+            player2, ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
+        )
 
         all_states = self.state_manager.get_all_client_states()
 
         self.assertEqual(len(all_states), 2)
         self.assertEqual(all_states[player1], ClientState.BASE)
         self.assertEqual(
-            all_states[player2], ClientState.INIT_READY_FOR_INITIAL_DATA
+            all_states[player2], ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
         )
 
     def test_get_client_count_by_state(self):
@@ -156,23 +163,29 @@ class TestClientStateManager(TestCase):
         for player in players:
             self.state_manager.add_client(player)
 
-        self.state_manager.transition_to_init_ready(players[1])
-        self.state_manager.transition_to_init_ready(players[2])
-        self.state_manager.transition_to_game(players[2])
+        # Sequential transitions for different players
+        self.state_manager.transition_state(
+            players[1], ClientState.INIT_WAITING_FOR_LOGIN_DATA
+        )
+        self.state_manager.transition_state(
+            players[1], ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
+        )
 
-        base_count = self.state_manager.get_client_count_by_state(
-            ClientState.BASE
+        self.state_manager.transition_state(
+            players[2], ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
-        init_count = self.state_manager.get_client_count_by_state(
-            ClientState.INIT_READY_FOR_INITIAL_DATA
+
+        base_count = self.state_manager.get_client_count_by_state(ClientState.BASE)
+        login_count = self.state_manager.get_client_count_by_state(
+            ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
-        game_count = self.state_manager.get_client_count_by_state(
-            ClientState.IN_GAME
+        char_select_count = self.state_manager.get_client_count_by_state(
+            ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
         )
 
         self.assertEqual(base_count, 2)  # players[0] and players[3]
-        self.assertEqual(init_count, 1)  # players[1]
-        self.assertEqual(game_count, 1)  # players[2]
+        self.assertEqual(login_count, 1)  # players[2]
+        self.assertEqual(char_select_count, 1)  # players[1]
 
     def test_thread_safety_concurrent_operations(self):
         """Test thread safety of concurrent state operations."""
@@ -182,19 +195,19 @@ class TestClientStateManager(TestCase):
         def add_and_transition_client(player_index):
             try:
                 self.state_manager.add_client(player_index)
-                success1 = self.state_manager.transition_to_init_ready(
-                    player_index
+                success1 = self.state_manager.transition_state(
+                    player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
                 )
-                success2 = self.state_manager.transition_to_game(player_index)
+                success2 = self.state_manager.transition_state(
+                    player_index, ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
+                )
                 results.append(f"success_{player_index}_{success1}_{success2}")
             except Exception as e:
                 results.append(f"error_{player_index}_{e}")
 
         threads = []
         for player in players:
-            thread = threading.Thread(
-                target=add_and_transition_client, args=(player,)
-            )
+            thread = threading.Thread(target=add_and_transition_client, args=(player,))
             threads.append(thread)
 
         for thread in threads:
@@ -204,42 +217,84 @@ class TestClientStateManager(TestCase):
             thread.join()
 
         success_count = sum(
-            1 for r in results
-            if r.startswith("success_") and "True_True" in r
+            1 for r in results if r.startswith("success_") and "True_True" in r
         )
         self.assertEqual(success_count, len(players))
 
-        game_clients = self.state_manager.get_clients_by_state(
-            ClientState.IN_GAME
+        char_select_clients = self.state_manager.get_clients_by_state(
+            ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
         )
-        self.assertEqual(len(game_clients), len(players))
+        self.assertEqual(len(char_select_clients), len(players))
 
     def test_complete_state_flow(self):
-        """Test complete state flow from BASE to IN_GAME."""
+        """Test complete state flow from BASE to CHARACTER_SELECT."""
         self.state_manager.add_client(self.player_index)
 
-        current_state = self.state_manager.get_client_state(
-            self.player_index
-        )
+        current_state = self.state_manager.get_client_state(self.player_index)
         self.assertEqual(current_state, ClientState.BASE)
 
-        result = self.state_manager.transition_to_init_ready(
-            self.player_index
+        # Sequential transition: BASE -> LOGIN
+        result = self.state_manager.transition_state(
+            self.player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
         self.assertTrue(result)
-        current_state = self.state_manager.get_client_state(
-            self.player_index
-        )
-        expected_state = ClientState.INIT_READY_FOR_INITIAL_DATA
-        self.assertEqual(current_state, expected_state)
+        current_state = self.state_manager.get_client_state(self.player_index)
+        self.assertEqual(current_state, ClientState.INIT_WAITING_FOR_LOGIN_DATA)
 
-        result = self.state_manager.transition_to_game(self.player_index)
+        # Sequential transition: LOGIN -> CHARACTER_SELECT
+        result = self.state_manager.transition_state(
+            self.player_index, ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
+        )
         self.assertTrue(result)
-        current_state = self.state_manager.get_client_state(
-            self.player_index
+        current_state = self.state_manager.get_client_state(self.player_index)
+        self.assertEqual(current_state, ClientState.INIT_WAITING_FOR_CHARACTER_SELECT)
+
+    def test_transition_state_sequential_validation(self):
+        """Test that transition_state validates sequential state progression."""
+        self.state_manager.add_client(self.player_index)
+
+        # Valid transitions: BASE(0) -> LOGIN(1) -> CHARACTER_SELECT(2)
+
+        # Test valid sequential transition
+        result = self.state_manager.transition_state(
+            self.player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
-        self.assertEqual(current_state, ClientState.IN_GAME)
+        self.assertTrue(result)
+
+        # Test invalid skip ahead
+        result = self.state_manager.transition_state(
+            self.player_index, ClientState.IN_GAME
+        )
+        self.assertFalse(result)
+
+        # Current state should still be LOGIN
+        current_state = self.state_manager.get_client_state(self.player_index)
+        self.assertEqual(current_state, ClientState.INIT_WAITING_FOR_LOGIN_DATA)
+
+        # Continue with valid progression
+        result = self.state_manager.transition_state(
+            self.player_index, ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
+        )
+        self.assertTrue(result)
+
+        # Test trying to skip back
+        result = self.state_manager.transition_state(
+            self.player_index, ClientState.BASE
+        )
+        self.assertFalse(result)
+
+    def test_transition_state_unknown_client(self):
+        """Test transition for unknown client."""
+        result = self.state_manager.transition_state(
+            self.player_index, ClientState.IN_GAME
+        )
+        self.assertFalse(result)
+
+        expected_msg = (
+            f"Cannot transition unknown client " f"0x{self.player_index:04X} to in_game"
+        )
+        self.mock_logger.warning.assert_called_with(expected_msg)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
