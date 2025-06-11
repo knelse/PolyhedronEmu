@@ -14,3 +14,4 @@ pythonscript.dll
 .builds
 .build_history
 *.TMP
+server_config.json
