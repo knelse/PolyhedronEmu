@@ -18,7 +18,7 @@ class TestClientCharacterMongo(unittest.TestCase):
     def test_character_initialization(self):
         """Test that character initializes with correct default values."""
         self.assertEqual(self.mongo_char.id, 0)
-        self.assertEqual(self.mongo_char.name, "Test")
+        self.assertEqual(self.mongo_char.name, "<create new>")
         self.assertEqual(self.mongo_char.current_hp, 0)
         self.assertEqual(self.mongo_char.max_hp, 0)
         self.assertEqual(self.mongo_char.y, 150.0)

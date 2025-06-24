@@ -8,10 +8,11 @@ class ClientState(Enum):
     """Enumeration of possible client states."""
 
     BASE = 0
-    INIT_WAITING_FOR_LOGIN_DATA = 1
-    INIT_WAITING_FOR_CHARACTER_SELECT = 2
-    INIT_READY_FOR_INITIAL_DATA = 3
-    IN_GAME = 4
+    INIT_READY_FOR_INITIAL_DATA = 1
+    INIT_WAITING_FOR_LOGIN_DATA = 2
+    INIT_WAITING_FOR_CHARACTER_SELECT = 3
+    INIT_WAITING_FOR_CLIENT_INGAME_ACK = 4
+    IN_GAME = 5
 
 
 class ClientStateManager:

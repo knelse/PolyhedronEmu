@@ -3,6 +3,7 @@ Data models for the PolyhedronEmu server.
 """
 
 from .client_character import ClientCharacter
+from .world_coords import WorldCoords
 from .enums import (
     GameObjectKind,
     GameObjectType,
@@ -33,6 +34,7 @@ from .enums import (
 
 __all__ = [
     "ClientCharacter",
+    "WorldCoords",
     "GameObjectKind",
     "GameObjectType",
     "ItemSuffix",

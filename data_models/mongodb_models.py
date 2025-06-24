@@ -65,7 +65,7 @@ class ClientCharacterMongo:
 
         # Character identity
         self.is_gender_female: bool = False
-        self.name: str = "Test"
+        self.name: str = "<create new>"
         self.clan: Optional[Clan] = DEFAULT_CLAN
 
         # Appearance
@@ -693,3 +693,65 @@ class CharacterDatabase:
         except Exception as e:
             print(f"Error getting next available slot index: {e}")
             return -1
+
+    def character_name_exists(self, name: str) -> bool:
+        """Check if a character name already exists in the database."""
+        try:
+            character_data = self.characters.find_one(
+                {"name": name, "is_not_queued_for_deletion": True}
+            )
+            return character_data is not None
+        except Exception as e:
+            print(f"Error checking if character name exists: {e}")
+            return True  # Return True on error to prevent duplicate names
+
+    def create_character(self, character_data: dict) -> Optional[int]:
+        """Create a new character from dictionary data."""
+        try:
+            # Create a new ClientCharacterMongo instance
+            character = ClientCharacterMongo()
+
+            # Set the character data
+            character.user_id = character_data.get("user_id", "")
+            character.character_slot_index = character_data.get(
+                "character_slot_index", 0
+            )
+            character.name = character_data.get("name", "")
+            character.is_gender_female = character_data.get("is_gender_female", False)
+            character.face_type = character_data.get("face_type", 0)
+            character.hair_style = character_data.get("hair_style", 0)
+            character.hair_color = character_data.get("hair_color", 0)
+            character.tattoo = character_data.get("tattoo", 0)
+            character.x = character_data.get("x", 0.0)
+            character.y = character_data.get("y", 150.0)
+            character.z = character_data.get("z", 0.0)
+            character.angle = character_data.get("angle", 0.0)
+
+            # Generate a new unique ID
+            character.id = self._generate_unique_character_id()
+
+            # Save the character
+            if self.save_character(character):
+                return character.id
+            else:
+                return None
+
+        except Exception as e:
+            print(f"Error creating character: {e}")
+            return None
+
+    def _generate_unique_character_id(self) -> int:
+        """Generate a unique character ID."""
+        try:
+            # Find the highest existing ID and add 1
+            result = self.characters.find().sort("id", -1).limit(1)
+            max_id = 0
+            for doc in result:
+                max_id = doc.get("id", 0)
+            return max_id + 1
+        except Exception as e:
+            print(f"Error generating unique character ID: {e}")
+            # Fallback to timestamp-based ID
+            import time
+
+            return int(time.time() * 1000) % 2147483647  # Keep within int32 range

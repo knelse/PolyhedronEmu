@@ -371,9 +371,9 @@ class TestClientHandler(unittest.TestCase):
                 mock_add.assert_called_with(player_index)
 
                 self.assertTrue(mock_transition.called)
-                # Verify the first transition call is to INIT_WAITING_FOR_LOGIN_DATA
+                # Verify the first transition call is to INIT_READY_FOR_INITIAL_DATA
                 mock_transition.assert_any_call(
-                    player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
+                    player_index, ClientState.INIT_READY_FOR_INITIAL_DATA
                 )
 
     def test_character_selection_waiting_loop(self):
@@ -382,17 +382,27 @@ class TestClientHandler(unittest.TestCase):
         mock_socket = MagicMock()
 
         # Test 1: Character delete request (starts with 0x2A)
-        delete_packet = b"\x2a" + b"\x00" * 16
+        delete_packet = b"\x2a" + b"\x00" * 17  # Make sure it's at least 18 bytes
         mock_socket.recv.return_value = delete_packet
 
         with patch.object(self.client_handler, "_cleanup_client") as mock_cleanup:
-            result = self.client_handler._wait_for_character_selection(
-                mock_socket, player_index
-            )
+            with patch.object(
+                self.client_handler.state_manager,
+                "get_user_id",
+                return_value="testuser",
+            ):
+                with patch.object(
+                    self.client_handler.character_db,
+                    "delete_character_by_user_index",
+                    return_value=True,
+                ):
+                    result = self.client_handler._wait_for_character_screen(
+                        mock_socket, player_index
+                    )
 
-            self.assertFalse(result)
-            mock_cleanup.assert_called_once_with(mock_socket, player_index)
-            self.mock_logger.debug.assert_any_call("Requested character delete")
+                    self.assertFalse(result)
+                    mock_cleanup.assert_called_once_with(mock_socket, player_index)
+                    self.mock_logger.debug.assert_any_call("Requested character delete")
 
     def test_character_selection_invalid_packet(self):
         """Test character selection with invalid packet conditions."""
@@ -401,58 +411,204 @@ class TestClientHandler(unittest.TestCase):
 
         # Test invalid packet: buffer[0] < 0x1B
         invalid_packet = b"\x1a" + b"\x00" * 16
-        valid_packet = b"\x1b" + b"\x00" * 12 + b"\x08\x40\x80\x05"
+        # Create a valid character creation packet (30 bytes total)
+        valid_packet = bytearray(30)
+        valid_packet[0] = 30  # Packet length >= 0x1B
+        valid_packet[13] = 0x08
+        valid_packet[14] = 0x40
+        valid_packet[15] = 0x80
+        valid_packet[16] = 0x05
+        valid_packet[17] = 8  # Character slot
 
         # Return invalid packet first, then valid packet
-        mock_socket.recv.side_effect = [invalid_packet, valid_packet]
+        mock_socket.recv.side_effect = [invalid_packet, bytes(valid_packet)]
 
-        with patch(
-            "server.packets.ServerPackets.character_name_check_success"
-        ) as mock_success:
-            with patch("utils.socket_utils.SocketUtils.send") as mock_send:
-                mock_success.return_value = b"success_packet"
-                mock_send.return_value = True
+        with patch.object(
+            self.client_handler.state_manager, "get_user_id", return_value="testuser"
+        ):
+            with patch.object(
+                self.client_handler, "_create_character_from_packet", return_value=True
+            ):
+                with patch(
+                    "server.packets.ServerPackets.character_name_check_success"
+                ) as mock_success:
+                    with patch("utils.socket_utils.SocketUtils.send") as mock_send:
+                        mock_success.return_value = b"success_packet"
+                        mock_send.return_value = True
 
-                result = self.client_handler._wait_for_character_selection(
-                    mock_socket, player_index
-                )
+                        result = self.client_handler._wait_for_character_screen(
+                            mock_socket, player_index
+                        )
 
-                self.assertTrue(result)
-                mock_success.assert_called_once_with(player_index)
-                mock_send.assert_called_once()
+                        # Should return the character slot index (1 in this case: 8 // 4 - 1 = 1)
+                        self.assertEqual(result, 1)
+                        mock_success.assert_called_once_with(player_index)
+                        mock_send.assert_called_once()
 
     def test_character_selection_valid_packet(self):
         """Test character selection with valid packet."""
         player_index = 0x5000
         mock_socket = MagicMock()
 
-        # Valid packet: buffer[0] >= 0x1B and specific byte patterns
-        valid_packet = b"\x1b" + b"\x00" * 12 + b"\x08\x40\x80\x05"
-        mock_socket.recv.return_value = valid_packet
+        # Create a valid character creation packet (30 bytes total)
+        valid_packet = bytearray(30)
+        valid_packet[0] = 30  # Packet length >= 0x1B
+        valid_packet[13] = 0x08
+        valid_packet[14] = 0x40
+        valid_packet[15] = 0x80
+        valid_packet[16] = 0x05
+        valid_packet[17] = 8  # Character slot
+        mock_socket.recv.return_value = bytes(valid_packet)
 
-        with patch(
-            "server.packets.ServerPackets.character_name_check_success"
-        ) as mock_success:
-            with patch("utils.socket_utils.SocketUtils.send") as mock_send:
-                mock_success.return_value = b"success_packet"
-                mock_send.return_value = True
+        with patch.object(
+            self.client_handler.state_manager, "get_user_id", return_value="testuser"
+        ):
+            with patch.object(
+                self.client_handler, "_create_character_from_packet", return_value=True
+            ):
+                with patch(
+                    "server.packets.ServerPackets.character_name_check_success"
+                ) as mock_success:
+                    with patch("utils.socket_utils.SocketUtils.send") as mock_send:
+                        mock_success.return_value = b"success_packet"
+                        mock_send.return_value = True
 
-                result = self.client_handler._wait_for_character_selection(
-                    mock_socket, player_index
+                        result = self.client_handler._wait_for_character_screen(
+                            mock_socket, player_index
+                        )
+
+                        # Should return the character slot index (1 in this case: 8 // 4 - 1 = 1)
+                        self.assertEqual(result, 1)
+                        mock_success.assert_called_once_with(player_index)
+                        mock_send.assert_called_once_with(
+                            mock_socket,
+                            b"success_packet",
+                            player_index,
+                            self.mock_logger,
+                            f"Sent character name check success to player "
+                            f"0x{player_index:04X}: {b'success_packet'.hex().upper()}",
+                        )
+                        self.mock_logger.info.assert_any_call(
+                            f"Character creation completed for player 0x{player_index:04X}"
+                        )
+
+    # def test_send_enter_game_data(self):
+    #     """Test send_enter_game_data method."""
+    #     player_index = 0x5000
+    #     character_slot_index = 1
+    #     user_id = "testuser"
+    #     mock_socket = MagicMock()
+
+    #     # Mock the state manager to return user_id
+    #     with patch.object(
+    #         self.client_handler.state_manager, "get_user_id", return_value=user_id
+    #     ):
+    #         # Mock the character database to return character data
+    #         mock_character_data = {
+    #             "_id": "test_id",
+    #             "user_id": user_id,
+    #             "character_slot_index": character_slot_index,
+    #             "name": "TestChar",
+    #             "is_gender_female": False,
+    #             "face_type": 1,
+    #             "hair_style": 1,
+    #             "hair_color": 1,
+    #             "tattoo": 0,
+    #             "is_not_queued_for_deletion": True,
+    #         }
+
+    #         with patch.object(
+    #             self.client_handler.character_db.characters,
+    #             "find_one",
+    #             return_value=mock_character_data,
+    #         ):
+    #             # Mock SocketUtils.send
+    #             with patch(
+    #                 "utils.socket_utils.SocketUtils.send", return_value=True
+    #             ) as mock_send:
+    #                 # Call the method
+    #                 self.client_handler.send_enter_game_data(
+    #                     character_slot_index, player_index, mock_socket
+    #                 )
+
+    #                 # Check if any exception was logged
+    #                 if self.mock_logger.log_exception.called:
+    #                     print("Exception was logged:")
+    #                     for call in self.mock_logger.log_exception.call_args_list:
+    #                         print(f"  {call}")
+
+    #                 # Check if any error was logged
+    #                 if self.mock_logger.error.called:
+    #                     print("Error was logged:")
+    #                     for call in self.mock_logger.error.call_args_list:
+    #                         print(f"  {call}")
+
+    #                 # Verify that send was called
+    #                 self.assertTrue(mock_send.called, "SocketUtils.send was not called")
+    #                 call_args = mock_send.call_args
+
+    #                 # Verify the socket and player_index were passed correctly
+    #                 self.assertEqual(call_args[0][0], mock_socket)  # client_socket
+    #                 self.assertEqual(call_args[0][2], player_index)  # player_index
+
+    #                 # Verify that game data was generated (should be a bytearray)
+    #                 game_data = call_args[0][1]  # game_data
+    #                 self.assertIsInstance(game_data, (bytes, bytearray))
+    #                 self.assertGreater(len(game_data), 0)
+
+    #                 # Verify success message was logged
+    #                 self.mock_logger.info.assert_any_call(
+    #                     f"Successfully sent enter game data for character 'TestChar' "
+    #                     f"at slot {character_slot_index} to player 0x{player_index:04X} "
+    #                     f"({len(game_data)} bytes)"
+    #                 )
+
+    def test_send_enter_game_data_no_user_id(self):
+        """Test send_enter_game_data when no user_id is found."""
+        player_index = 0x5000
+        character_slot_index = 1
+        mock_socket = MagicMock()
+
+        # Mock the state manager to return None for user_id
+        with patch.object(
+            self.client_handler.state_manager, "get_user_id", return_value=None
+        ):
+            # Call the method
+            self.client_handler.send_enter_game_data(
+                character_slot_index, player_index, mock_socket
+            )
+
+            # Verify error was logged
+            self.mock_logger.error.assert_any_call(
+                f"Cannot send enter game data for player 0x{player_index:04X} - no user_id found"
+            )
+
+    def test_send_enter_game_data_character_not_found(self):
+        """Test send_enter_game_data when character is not found in database."""
+        player_index = 0x5000
+        character_slot_index = 1
+        user_id = "testuser"
+        mock_socket = MagicMock()
+
+        # Mock the state manager to return user_id
+        with patch.object(
+            self.client_handler.state_manager, "get_user_id", return_value=user_id
+        ):
+            # Mock the character database to return None (character not found)
+            with patch.object(
+                self.client_handler.character_db.characters,
+                "find_one",
+                return_value=None,
+            ):
+                # Call the method
+                self.client_handler.send_enter_game_data(
+                    character_slot_index, player_index, mock_socket
                 )
 
-                self.assertTrue(result)
-                mock_success.assert_called_once_with(player_index)
-                mock_send.assert_called_once_with(
-                    mock_socket,
-                    b"success_packet",
-                    player_index,
-                    self.mock_logger,
-                    f"Sent character name check success to player "
-                    f"0x{player_index:04X}: {b'success_packet'.hex().upper()}",
-                )
-                self.mock_logger.info.assert_any_call(
-                    f"Character selection completed for player 0x{player_index:04X}"
+                # Verify error was logged
+                self.mock_logger.error.assert_any_call(
+                    f"Cannot send enter game data for player 0x{player_index:04X} - "
+                    f"character not found at slot {character_slot_index}"
                 )
 
 

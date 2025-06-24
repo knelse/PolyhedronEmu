@@ -103,7 +103,10 @@ class TestClientStateManager(TestCase):
         self.state_manager.add_client(player2)
         self.state_manager.add_client(player3)
 
-        # Sequential transitions: BASE -> LOGIN -> CHARACTER_SELECT
+        # Sequential transitions: BASE -> INIT_READY -> LOGIN -> CHARACTER_SELECT
+        self.state_manager.transition_state(
+            player2, ClientState.INIT_READY_FOR_INITIAL_DATA
+        )
         self.state_manager.transition_state(
             player2, ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
@@ -111,6 +114,9 @@ class TestClientStateManager(TestCase):
             player2, ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
         )
 
+        self.state_manager.transition_state(
+            player3, ClientState.INIT_READY_FOR_INITIAL_DATA
+        )
         self.state_manager.transition_state(
             player3, ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
@@ -140,7 +146,10 @@ class TestClientStateManager(TestCase):
         self.state_manager.add_client(player1)
         self.state_manager.add_client(player2)
 
-        # Sequential transition: BASE -> LOGIN -> CHARACTER_SELECT
+        # Sequential transition: BASE -> INIT_READY -> LOGIN -> CHARACTER_SELECT
+        self.state_manager.transition_state(
+            player2, ClientState.INIT_READY_FOR_INITIAL_DATA
+        )
         self.state_manager.transition_state(
             player2, ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
@@ -165,12 +174,18 @@ class TestClientStateManager(TestCase):
 
         # Sequential transitions for different players
         self.state_manager.transition_state(
+            players[1], ClientState.INIT_READY_FOR_INITIAL_DATA
+        )
+        self.state_manager.transition_state(
             players[1], ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
         self.state_manager.transition_state(
             players[1], ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
         )
 
+        self.state_manager.transition_state(
+            players[2], ClientState.INIT_READY_FOR_INITIAL_DATA
+        )
         self.state_manager.transition_state(
             players[2], ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
@@ -196,12 +211,17 @@ class TestClientStateManager(TestCase):
             try:
                 self.state_manager.add_client(player_index)
                 success1 = self.state_manager.transition_state(
-                    player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
+                    player_index, ClientState.INIT_READY_FOR_INITIAL_DATA
                 )
                 success2 = self.state_manager.transition_state(
+                    player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
+                )
+                success3 = self.state_manager.transition_state(
                     player_index, ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
                 )
-                results.append(f"success_{player_index}_{success1}_{success2}")
+                results.append(
+                    f"success_{player_index}_{success1}_{success2}_{success3}"
+                )
             except Exception as e:
                 results.append(f"error_{player_index}_{e}")
 
@@ -217,7 +237,7 @@ class TestClientStateManager(TestCase):
             thread.join()
 
         success_count = sum(
-            1 for r in results if r.startswith("success_") and "True_True" in r
+            1 for r in results if r.startswith("success_") and "True_True_True" in r
         )
         self.assertEqual(success_count, len(players))
 
@@ -233,7 +253,15 @@ class TestClientStateManager(TestCase):
         current_state = self.state_manager.get_client_state(self.player_index)
         self.assertEqual(current_state, ClientState.BASE)
 
-        # Sequential transition: BASE -> LOGIN
+        # Sequential transition: BASE -> INIT_READY
+        result = self.state_manager.transition_state(
+            self.player_index, ClientState.INIT_READY_FOR_INITIAL_DATA
+        )
+        self.assertTrue(result)
+        current_state = self.state_manager.get_client_state(self.player_index)
+        self.assertEqual(current_state, ClientState.INIT_READY_FOR_INITIAL_DATA)
+
+        # Sequential transition: INIT_READY -> LOGIN
         result = self.state_manager.transition_state(
             self.player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
@@ -253,9 +281,15 @@ class TestClientStateManager(TestCase):
         """Test that transition_state validates sequential state progression."""
         self.state_manager.add_client(self.player_index)
 
-        # Valid transitions: BASE(0) -> LOGIN(1) -> CHARACTER_SELECT(2)
+        # Valid transitions: BASE(0) -> INIT_READY(1) -> LOGIN(2) -> CHARACTER_SELECT(3)
 
-        # Test valid sequential transition
+        # Test valid sequential transition: BASE -> INIT_READY
+        result = self.state_manager.transition_state(
+            self.player_index, ClientState.INIT_READY_FOR_INITIAL_DATA
+        )
+        self.assertTrue(result)
+
+        # Test valid sequential transition: INIT_READY -> LOGIN
         result = self.state_manager.transition_state(
             self.player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )

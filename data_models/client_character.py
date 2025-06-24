@@ -250,8 +250,6 @@ class ClientCharacter:
         stream.write_int(self.available_degree_stats >> 14, 2)
         stream.write_bytes(bytes([0xC0, 0xC8, 0xC8]))
         name_encoded = self.name.encode("cp1251")[:19].ljust(19, b"\x00")
-        for char in name_encoded:
-            print(char)
         stream.write_int(0b100 if self.is_gender_female else 0, 8)
         stream.write_int(name_encoded[0], 6)
         stream.write_int(0, 2)
@@ -325,3 +323,200 @@ class ClientCharacter:
             )
         )
         return bytearray(stream.to_bytes())
+
+    def to_game_data_bytearray(self) -> bytearray:
+        """Convert character to bytearray for game data transmission."""
+        from .world_coords import WorldCoords
+
+        stream = SimpleBitStream()
+
+        # Header
+        stream.write_bytes(bytes([0x00, 0x01, 0x2C, 0x01, 0x00, 0x00, 0x04]))
+        stream.write_int(self.player_index, 16)
+        stream.write_bytes(bytes([0x08, 0x00]))
+
+        # Character name encoding
+        name_encoded = self.name.encode("cp1251")
+        name_len = len(name_encoded) + 1
+
+        stream.write_int(((name_len & 0b111) << 5) + 2, 8)
+        stream.write_int(
+            ((name_encoded[0] & 0b111) << 5) + ((name_len & 0b11111000) >> 3), 8
+        )
+
+        for i in range(1, len(name_encoded)):
+            stream.write_int(
+                ((name_encoded[i] & 0b111) << 5)
+                + ((name_encoded[i - 1] & 0b11111000) >> 3),
+                8,
+            )
+
+        stream.write_int((name_encoded[-1] & 0b11111000) >> 3, 8)
+
+        # Clan information
+        if self.clan is None or self.clan.clan_id == DEFAULT_CLAN.clan_id:
+            stream.write_bytes(bytes([0x00, 0x6E]))
+        else:
+            clan_name_encoded = self.clan.name.encode("cp1251")
+            clan_name_length = len(clan_name_encoded)
+            stream.write_int((clan_name_length & 0b111) << 5, 8)
+            stream.write_int(
+                ((clan_name_encoded[0] & 0b1111111) << 1)
+                + ((clan_name_length & 0b1000) >> 3),
+                8,
+            )
+
+            for i in range(1, clan_name_length):
+                stream.write_int(
+                    ((clan_name_encoded[i] & 0b1111111) << 1)
+                    + ((clan_name_encoded[i - 1] & 0b10000000) >> 7),
+                    8,
+                )
+
+            stream.write_int(
+                0b01100000
+                + (self.clan_rank.value << 1)
+                + ((clan_name_encoded[-1] & 0b10000000) >> 7),
+                8,
+            )
+
+        # Fixed bytes and coordinates
+        stream.write_bytes(bytes([0x1A, 0x98, 0x18, 0x19]))
+
+        # Encode and write coordinates
+        x = WorldCoords.encode_server_coord(self.x)
+        y = WorldCoords.encode_server_coord(-self.y)  # Note: Y is negated
+        z = WorldCoords.encode_server_coord(self.z)
+        t = WorldCoords.encode_server_coord(self.angle)
+
+        stream.write_bytes(bytes(x))
+        stream.write_bytes(bytes(y))
+        stream.write_bytes(bytes(z))
+        stream.write_bytes(bytes(t))
+
+        stream.write_bytes(bytes([0x37, 0x0D, 0x79, 0x00, 0xF0]))
+
+        # Equipment slots
+        equipment_slots = [
+            BelongingSlot.HELMET,
+            BelongingSlot.AMULET,
+            BelongingSlot.SHIELD,
+            BelongingSlot.CHESTPLATE,
+            BelongingSlot.GLOVES,
+            BelongingSlot.BELT,
+            BelongingSlot.BRACELET_LEFT,
+            BelongingSlot.BRACELET_RIGHT,
+            BelongingSlot.RING_1,
+            BelongingSlot.RING_2,
+            BelongingSlot.RING_3,
+            BelongingSlot.RING_4,
+            BelongingSlot.PANTS,
+            BelongingSlot.BOOTS,
+            BelongingSlot.GUILD,
+            BelongingSlot.MAP_BOOK,
+            BelongingSlot.RECIPE_BOOK,
+            BelongingSlot.MANTRA_BOOK,
+        ]
+
+        for slot in equipment_slots:
+            stream.write_int(0x04 if not self._is_item_slot_empty(slot) else 0x00, 8)
+            stream.write_int(0x00, 8)
+
+        # Padding
+        stream.write_bytes(bytes([0x00, 0x00, 0x00, 0x00]))
+
+        # More equipment slots
+        more_slots = [
+            BelongingSlot.INKPOT,
+            BelongingSlot.MONEY,
+            BelongingSlot.BACKPACK,
+            BelongingSlot.KEY_1,
+            BelongingSlot.KEY_2,
+            BelongingSlot.MISSION,
+            BelongingSlot.INVENTORY_1,
+            BelongingSlot.INVENTORY_2,
+            BelongingSlot.INVENTORY_3,
+            BelongingSlot.INVENTORY_4,
+            BelongingSlot.INVENTORY_5,
+            BelongingSlot.INVENTORY_6,
+            BelongingSlot.INVENTORY_7,
+            BelongingSlot.INVENTORY_8,
+            BelongingSlot.INVENTORY_9,
+            BelongingSlot.INVENTORY_10,
+        ]
+
+        for slot in more_slots:
+            stream.write_int(0x04 if not self._is_item_slot_empty(slot) else 0x00, 8)
+            stream.write_int(0x00, 8)
+
+        # More padding
+        stream.write_bytes(bytes([0x00] * 20))
+
+        # Special slots
+        special_slots = [
+            BelongingSlot.SPECIAL_1,
+            BelongingSlot.SPECIAL_2,
+            BelongingSlot.SPECIAL_3,
+            BelongingSlot.SPECIAL_4,
+            BelongingSlot.SPECIAL_5,
+            BelongingSlot.SPECIAL_6,
+            BelongingSlot.SPECIAL_7,
+            BelongingSlot.SPECIAL_8,
+            BelongingSlot.SPECIAL_9,
+            BelongingSlot.AMMO,
+            BelongingSlot.SPEEDHACK_MANTRA,
+        ]
+
+        for slot in special_slots:
+            stream.write_int(0x04 if not self._is_item_slot_empty(slot) else 0x00, 8)
+            stream.write_int(0x00, 8)
+
+        # Final padding
+        stream.write_bytes(bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0]))
+
+        # 150 zero bytes
+        stream.write_bytes(bytes([0x00] * 150))
+
+        # Health and mana encoding
+        stream.write_int(((self.current_hp & 0b111) << 5) + 0b10011, 8)
+        stream.write_int((self.current_hp & 0b11111111000) >> 3, 8)
+        stream.write_int(
+            ((self.max_hp & 0b11) << 6)
+            + (0b100 << 3)
+            + ((self.current_hp & 0b11100000000000) >> 11),
+            8,
+        )
+        stream.write_int((self.max_hp & 0b1111111100) >> 2, 8)
+        stream.write_int(
+            (self.karma.value << 4) + ((self.max_hp & 0b11110000000000) >> 10), 8
+        )
+
+        # Title and degree encoding
+        to_encode = self.degree_minus_one * 100 + self.title_minus_one
+        stream.write_int(((to_encode & 0b111111) << 2) + 2, 8)
+        stream.write_int((to_encode & 0b11111111000000) >> 6, 8)
+
+        stream.write_int(0x80, 8)
+
+        # Guild information
+        if self.guild == Guild.NONE:
+            stream.write_int(0x00, 8)
+        else:
+            stream.write_int((1 << 7) + (self.guild.value << 1), 8)
+
+        # Money encoding
+        stream.write_int(((self.money & 0b1111) << 4) + self.guild_level_minus_one, 8)
+        stream.write_int((self.money & 0b111111110000) >> 4, 8)
+        stream.write_int((self.money & 0b11111111000000000000) >> 12, 8)
+        stream.write_int((self.money & 0b1111111100000000000000000000) >> 20, 8)
+        stream.write_int((self.money & 0b11110000000000000000000000000000) >> 28, 8)
+
+        # Convert to bytearray and set packet length
+        data = bytearray(stream.to_bytes())
+        data[0] = len(data)
+
+        return data
+
+    def _is_item_slot_empty(self, slot: BelongingSlot) -> bool:
+        """Check if an item slot is empty."""
+        return slot not in self.items or self.items[slot] == 0

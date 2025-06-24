@@ -110,6 +110,13 @@ class ClientHandler:
             )
             self.logger.info(msg)
 
+            state_change_success = self.state_manager.transition_state(
+                player_index, ClientState.INIT_READY_FOR_INITIAL_DATA
+            )
+            if not state_change_success:
+                self._cleanup_client(client_socket, player_index)
+                return
+
             send_packet_success = SocketUtils.send(
                 client_socket,
                 INIT_PACKET,
@@ -257,11 +264,25 @@ class ClientHandler:
                 self._cleanup_client(client_socket, player_index)
                 return
 
-            character_selected = self._wait_for_character_selection(
+            character_screen_result = self._wait_for_character_screen(
                 client_socket, player_index
             )
-            if not character_selected:
+            if character_screen_result is None:
                 return
+
+            # If character_screen_result is not None, it contains the slot index
+            if character_screen_result is not False:
+                # Character creation succeeded, send enter game data and transition state
+                self.send_enter_game_data(
+                    character_screen_result, player_index, client_socket
+                )
+
+                state_change_success = self.state_manager.transition_state(
+                    player_index, ClientState.INIT_WAITING_FOR_CLIENT_INGAME_ACK
+                )
+                if not state_change_success:
+                    self._cleanup_client(client_socket, player_index)
+                    return
 
             self._handle_client_communication(
                 client_socket, address, player_index, is_running
@@ -380,18 +401,20 @@ class ClientHandler:
             self.logger.log_exception(msg, e)
             return None
 
-    def _wait_for_character_selection(
+    def _wait_for_character_screen(
         self, client_socket: socket.socket, player_index: int
-    ) -> bool:
+    ):
         """
-        Wait for client to select a character in the character selection loop.
+        Wait for client to interact with the character screen (select or delete character).
 
         Args:
             client_socket: The client's socket connection
             player_index: The player's index for logging
 
         Returns:
-            True if character selection was successful, False if client should be cleaned up
+            int: character slot index if character creation succeeded
+            False: for character selection or deletion (connection will be closed)
+            None: for errors or disconnection
         """
         try:
             client_socket.settimeout(86400.0)  # we can wait
@@ -400,10 +423,10 @@ class ClientHandler:
                 data = client_socket.recv(1024)
                 if not data:
                     self.logger.warning(
-                        f"Player 0x{player_index:04X} disconnected during character selection"
+                        f"Player 0x{player_index:04X} disconnected during character screen"
                     )
                     self._cleanup_client(client_socket, player_index)
-                    return False
+                    return None
 
                 msg = f"Received packet from player 0x{player_index:04X}: {data.hex().upper()}"
                 self.logger.debug(msg)
@@ -444,6 +467,46 @@ class ClientHandler:
                     self._cleanup_client(client_socket, player_index)
                     return False
 
+                if len(data) >= 18 and data[0] == 0x15:
+                    character_slot_index = data[17] // 4 - 1
+                    user_id = self.state_manager.get_user_id(player_index)
+                    if user_id:
+                        # Check if character exists in database
+                        character_data = self.character_db.characters.find_one(
+                            {
+                                "user_id": user_id,
+                                "character_slot_index": character_slot_index,
+                                "is_not_queued_for_deletion": True,
+                            }
+                        )
+
+                        if character_data:
+                            msg = (
+                                f"Player 0x{player_index:04X} selected character "
+                                f"at slot {character_slot_index}"
+                            )
+                            self.logger.info(msg)
+
+                            # Send enter game world data and close connection
+                            self.send_enter_game_world_data(
+                                character_slot_index, user_id
+                            )
+                            self._cleanup_client(client_socket, player_index)
+                            return False
+                        else:
+                            msg = (
+                                f"Player 0x{player_index:04X} tried to select "
+                                f"non-existent character at slot {character_slot_index}"
+                            )
+                            self.logger.warning(msg)
+                    else:
+                        msg = (
+                            f"Player 0x{player_index:04X} attempted character "
+                            f"selection but no user_id found"
+                        )
+                        self.logger.warning(msg)
+                    continue
+
                 if len(data) < 17:
                     continue
 
@@ -456,36 +519,78 @@ class ClientHandler:
                 ):
                     continue
 
-                success_packet = ServerPackets.character_name_check_success(
-                    player_index
-                )
-                send_packet_success = SocketUtils.send(
-                    client_socket,
-                    success_packet,
-                    player_index,
-                    self.logger,
-                    f"Sent character name check success to player "
-                    f"0x{player_index:04X}: {success_packet.hex().upper()}",
-                )
-                if not send_packet_success:
-                    self._cleanup_client(client_socket, player_index)
-                    return False
+                # Character creation packet detected
+                user_id = self.state_manager.get_user_id(player_index)
+                if user_id:
+                    character_slot_index = data[17] // 4 - 1
+                    creation_result = self._create_character_from_packet(
+                        data, user_id, character_slot_index, player_index
+                    )
 
-                msg = f"Character selection completed for player 0x{player_index:04X}"
-                self.logger.info(msg)
-                return True
+                    if creation_result:
+                        success_packet = ServerPackets.character_name_check_success(
+                            player_index
+                        )
+                        send_packet_success = SocketUtils.send(
+                            client_socket,
+                            success_packet,
+                            player_index,
+                            self.logger,
+                            f"Sent character name check success to player "
+                            f"0x{player_index:04X}: {success_packet.hex().upper()}",
+                        )
+                        if not send_packet_success:
+                            self._cleanup_client(client_socket, player_index)
+                            return None
+
+                        msg = f"Character creation completed for player 0x{player_index:04X}"
+                        self.logger.info(msg)
+                        return character_slot_index
+                    else:
+                        # Name already exists or other error
+                        name_taken_packet = ServerPackets.character_name_already_taken(
+                            player_index
+                        )
+                        send_packet_success = SocketUtils.send(
+                            client_socket,
+                            name_taken_packet,
+                            player_index,
+                            self.logger,
+                            f"Sent character name already taken to player "
+                            f"0x{player_index:04X}: {name_taken_packet.hex().upper()}",
+                        )
+                        if not send_packet_success:
+                            self._cleanup_client(client_socket, player_index)
+                            return None
+
+                        msg = (
+                            f"Character creation failed for player 0x{player_index:04X} - "
+                            f"name already exists"
+                        )
+                        self.logger.warning(msg)
+
+                        # Close connection after sending the packet
+                        self._cleanup_client(client_socket, player_index)
+                        return None
+                else:
+                    msg = (
+                        f"Player 0x{player_index:04X} attempted character "
+                        f"creation but no user_id found"
+                    )
+                    self.logger.warning(msg)
+                    continue
 
         except socket.timeout:
             self.logger.warning(
-                f"Timeout waiting for character selection from player 0x{player_index:04X}"
+                f"Timeout waiting for character screen interaction from player 0x{player_index:04X}"
             )
             self._cleanup_client(client_socket, player_index)
-            return False
+            return None
         except Exception as e:
-            msg = f"Error waiting for character selection from player 0x{player_index:04X}"
+            msg = f"Error waiting for character screen interaction from player 0x{player_index:04X}"
             self.logger.log_exception(msg, e)
             self._cleanup_client(client_socket, player_index)
-            return False
+            return None
 
     def _create_triple_character_data(self, player_index: int, user_id: str) -> bytes:
         """
@@ -537,6 +642,108 @@ class ClientHandler:
         self.logger.debug(msg)
 
         return combined_packet
+
+    def send_enter_game_world_data(
+        self, character_slot_index: int, user_id: str
+    ) -> None:
+        """
+        Send enter game world data for the selected character.
+        For now, this method just logs the action and closes the connection.
+
+        Args:
+            character_slot_index: The character slot index that was selected
+            user_id: The user's login ID
+        """
+        msg = (
+            f"Entering game world with character at slot {character_slot_index} "
+            f"for user {user_id}"
+        )
+        self.logger.info(msg)
+
+        # TODO: Implement game world entry logic here
+        # For now, just log and let the calling method handle connection closure
+
+    def send_enter_game_data(
+        self,
+        character_slot_index: int,
+        player_index: int,
+        client_socket: socket.socket,
+    ) -> None:
+        """
+        Send enter game data for a newly created character.
+        This is called after successful character creation.
+
+        Args:
+            character_slot_index: The character slot index that was created
+            player_index: The player's index for logging
+            client_socket: The client's socket connection
+        """
+        try:
+            # Get the user_id from state manager
+            user_id = self.state_manager.get_user_id(player_index)
+            if not user_id:
+                msg = (
+                    f"Cannot send enter game data for player 0x{player_index:04X} - "
+                    f"no user_id found"
+                )
+                self.logger.error(msg)
+                return
+
+            # Retrieve the newly created character from database
+            character_data = self.character_db.characters.find_one(
+                {
+                    "user_id": user_id,
+                    "character_slot_index": character_slot_index,
+                    "is_not_queued_for_deletion": True,
+                }
+            )
+
+            if not character_data:
+                msg = (
+                    f"Cannot send enter game data for player 0x{player_index:04X} - "
+                    f"character not found at slot {character_slot_index}"
+                )
+                self.logger.error(msg)
+                return
+
+            # Convert MongoDB character to ClientCharacter
+            from data_models.mongodb_models import ClientCharacterMongo
+
+            character_mongo = ClientCharacterMongo.from_dict(character_data)
+            character = character_mongo.to_client_character()
+
+            # Set the correct player index
+            character.player_index = player_index
+
+            # Generate the game data bytearray
+            game_data = character.to_game_data_bytearray()
+
+            # Send the game data to the client
+            from utils.socket_utils import SocketUtils
+
+            send_success = SocketUtils.send(
+                client_socket,
+                game_data,
+                player_index,
+                self.logger,
+                f"Sent enter game data to player 0x{player_index:04X}: "
+                f"{len(game_data)} bytes",
+            )
+
+            if send_success:
+                msg = (
+                    f"Successfully sent enter game data for character '{character.name}' "
+                    f"at slot {character_slot_index} to player 0x{player_index:04X} "
+                    f"({len(game_data)} bytes)"
+                )
+                self.logger.info(msg)
+            else:
+                msg = f"Failed to send enter game data for player 0x{player_index:04X}"
+                self.logger.error(msg)
+
+        except Exception as e:
+            msg = f"Error sending enter game data for player 0x{player_index:04X}"
+            self.logger.log_exception(msg, e)
 
     def _cleanup_client(self, client_socket: socket.socket, player_index: int) -> None:
         """
@@ -661,3 +868,152 @@ class ClientHandler:
                         return True
             time.sleep(0.1)
         return False
+
+    def _create_character_from_packet(
+        self, data, user_id, character_slot_index, player_index
+    ):
+        """
+        Create a new character from the received packet data.
+
+        Args:
+            data: The packet data bytes
+            user_id: The user's ID
+            character_slot_index: The character slot index (0-3)
+            player_index: The player index for logging
+
+        Returns:
+            bool: True if character was created successfully, False otherwise
+        """
+        try:
+            # Decode character name from packet
+            name = self._decode_character_name(data)
+
+            # Check if name is valid (not already taken)
+            if self.character_db.character_name_exists(name):
+                msg = (
+                    f"Player 0x{player_index:04X} tried to create character "
+                    f"with existing name: {name}"
+                )
+                self.logger.warning(msg)
+                return False
+
+            # Extract character appearance data
+            char_data_bytes_start = data[0] - 5
+            char_data_bytes = data[
+                char_data_bytes_start : char_data_bytes_start + data[0]
+            ]
+
+            # Parse appearance data
+            is_gender_female = (char_data_bytes[1] >> 4) % 2 == 1
+            face_type = ((char_data_bytes[1] & 0b111111) << 2) + (
+                char_data_bytes[0] >> 6
+            )
+            hair_style = ((char_data_bytes[2] & 0b111111) << 2) + (
+                char_data_bytes[1] >> 6
+            )
+            hair_color = ((char_data_bytes[3] & 0b111111) << 2) + (
+                char_data_bytes[2] >> 6
+            )
+            tattoo = ((char_data_bytes[4] & 0b111111) << 2) + (char_data_bytes[3] >> 6)
+
+            # Apply female adjustments
+            if is_gender_female:
+                face_type = 256 - face_type
+                hair_style = 255 - hair_style
+                hair_color = 255 - hair_color
+                tattoo = 255 - tattoo
+
+            # Create character data
+            character_data = {
+                "user_id": user_id,
+                "character_slot_index": character_slot_index,
+                "name": name,
+                "is_gender_female": is_gender_female,
+                "face_type": face_type,
+                "hair_style": hair_style,
+                "hair_color": hair_color,
+                "tattoo": tattoo,
+            }
+
+            # Save character to database
+            character_id = self.character_db.create_character(character_data)
+
+            if character_id:
+                msg = (
+                    f"Player 0x{player_index:04X} created character '{name}' "
+                    f"in slot {character_slot_index} with ID {character_id}"
+                )
+                self.logger.info(msg)
+                return True
+            else:
+                msg = f"Player 0x{player_index:04X} failed to save character '{name}' to database"
+                self.logger.error(msg)
+                return False
+
+        except Exception as e:
+            msg = f"Error creating character for player 0x{player_index:04X}: {e}"
+            self.logger.error(msg)
+            return False
+
+    def _decode_character_name(self, data):
+        """
+        Decode character name from packet data using the game's encoding scheme.
+
+        Args:
+            data: The packet data bytes
+
+        Returns:
+            str: The decoded character name
+        """
+        length = data[0] - 20 - 5
+        name_check_bytes = data[20:]
+
+        name_chars = []
+        first_letter_char_code = ((name_check_bytes[1] & 0b11111) << 3) + (
+            name_check_bytes[0] >> 5
+        )
+        first_letter_should_be_russian = False
+
+        # Decode characters starting from index 1
+        for i in range(1, length):
+            current_char_code = ((name_check_bytes[i] & 0b11111) << 3) + (
+                name_check_bytes[i - 1] >> 5
+            )
+
+            if current_char_code % 2 == 0:
+                # English character
+                current_letter = chr(current_char_code // 2)
+                name_chars.append(current_letter)
+            else:
+                # Russian character
+                if current_char_code >= 193:
+                    current_letter = chr((current_char_code - 192) // 2 + ord("а"))
+                else:
+                    current_letter = chr((current_char_code - 129) // 2 + ord("А"))
+                name_chars.append(current_letter)
+
+                if i == 2:
+                    # Assume first letter was Russian if second letter is
+                    first_letter_should_be_russian = True
+
+        # Handle first letter
+        if first_letter_should_be_russian:
+            first_letter_char_code += 1
+            if first_letter_char_code >= 193:
+                first_letter = chr((first_letter_char_code - 192) // 2 + ord("а"))
+            else:
+                first_letter = chr((first_letter_char_code - 129) // 2 + ord("А"))
+            name = (
+                first_letter + "".join(name_chars[1:])
+                if len(name_chars) > 1
+                else first_letter
+            )
+        else:
+            first_letter = chr(first_letter_char_code // 2)
+            name = (
+                first_letter + "".join(name_chars[1:])
+                if len(name_chars) > 1
+                else first_letter
+            )
+
+        return name
