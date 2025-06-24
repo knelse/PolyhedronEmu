@@ -21,7 +21,7 @@ class AuthConfig:
             "hash_algorithm": "sha256",
             "max_login_length": 50,
             "max_password_length": 100,
-            "min_password_length": 3,
+            "min_password_length": 1,
             "case_sensitive_login": False,
         }
 
