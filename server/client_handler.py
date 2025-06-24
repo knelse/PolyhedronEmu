@@ -2,7 +2,6 @@ import socket
 import threading
 import time
 from typing import Callable
-from data_models.client_character import ClientCharacter
 from py4godot.classes.Node3D import Node3D
 from server.logger import ServerLogger
 from server.player_manager import PlayerManager
@@ -609,6 +608,7 @@ class ClientHandler:
 
         # Create 3 characters (mix of user's actual characters and defaults)
         characters = []
+        char_data_packets = []
 
         # Use actual characters up to 3, then fill with defaults
         for i in range(3):
@@ -617,18 +617,12 @@ class ClientHandler:
                 character = user_characters[i].to_client_character()
                 character.player_index = player_index
                 characters.append(character)
+                char_data = character.to_character_list_bytearray()
+                char_data_packets.append(char_data)
             else:
-                # Create default character
-                character = ClientCharacter()
-                character.player_index = player_index
-                character.name = "<create new>"
-                characters.append(character)
-
-        # Generate character data packets
-        char_data_packets = []
-        for character in characters:
-            char_data = character.to_character_list_bytearray()
-            char_data_packets.append(char_data)
+                char_data_packets.append(
+                    ServerPackets.get_new_character_data(player_index)
+                )
 
         # Combine all three packets without separators
         combined_packet = b"".join(char_data_packets)
