@@ -329,15 +329,49 @@ class ClientHandler:
                     msg = f"Received from player 0x{player_index:04X}: {data.hex().upper()}"
                     self.logger.debug(msg)
 
-                    send_packet_success = SocketUtils.send(
-                        client_socket,
-                        data,
-                        player_index,
-                        self.logger,
-                        f"Echoed data to player 0x{player_index:04X}: {data.hex().upper()}",
-                    )
-                    if not send_packet_success:
-                        break
+                    # Check current client state
+                    current_state = self.state_manager.get_client_state(player_index)
+
+                    if current_state == ClientState.INIT_WAITING_FOR_CLIENT_INGAME_ACK:
+                        # Wait for any packet that does not start with 0x13
+                        if len(data) > 0 and data[0] != 0x13:
+                            msg = (
+                                f"Player 0x{player_index:04X} sent ingame ack packet: "
+                                f"{data.hex().upper()}"
+                            )
+                            self.logger.info(msg)
+
+                            # Send new_character_world_data packet
+                            world_data_packet = ServerPackets.new_character_world_data(
+                                player_index
+                            )
+                            send_packet_success = SocketUtils.send(
+                                client_socket,
+                                world_data_packet,
+                                player_index,
+                                self.logger,
+                                f"Sent new character world data to player 0x{player_index:04X}: "
+                                f"{len(world_data_packet)} bytes",
+                            )
+                            if not send_packet_success:
+                                break
+
+                            # Transition to IN_GAME state
+                            state_change_success = self.state_manager.transition_state(
+                                player_index, ClientState.IN_GAME
+                            )
+                            if not state_change_success:
+                                self._cleanup_client(client_socket, player_index)
+                                return
+
+                            msg = f"Player 0x{player_index:04X} successfully entered game world"
+                            self.logger.info(msg)
+                        else:
+                            msg = (
+                                f"Player 0x{player_index:04X} sent packet starting with 0x13, "
+                                f"ignoring: {data.hex().upper()}"
+                            )
+                            self.logger.debug(msg)
 
                 except socket.timeout:
                     continue
@@ -486,12 +520,7 @@ class ClientHandler:
                             )
                             self.logger.info(msg)
 
-                            # Send enter game world data and close connection
-                            self.send_enter_game_world_data(
-                                character_slot_index, user_id
-                            )
-                            self._cleanup_client(client_socket, player_index)
-                            return False
+                            return character_slot_index
                         else:
                             msg = (
                                 f"Player 0x{player_index:04X} tried to select "
@@ -819,6 +848,9 @@ class ClientHandler:
         """
         self.is_running = False
 
+        # Close server socket to stop accepting new connections
+        # (This will be handled by the main server node)
+
         # Clean up all client nodes
         with self.nodes_lock:
             for player_index, client_node in self.client_nodes.items():
@@ -829,16 +861,47 @@ class ClientHandler:
                     self.logger.log_exception(msg, e)
             self.client_nodes.clear()
 
-        # Wait for threads to complete (with timeout)
+        # Get list of threads to wait for and clear the tracking dict
         with self.threads_lock:
             threads_to_wait = list(self.client_threads.values())
             self.client_threads.clear()
 
-        for thread in threads_to_wait:
-            try:
-                thread.join(timeout=2.0)  # Wait up to 2 seconds per thread
-            except Exception as e:
-                self.logger.debug(f"Error joining thread {thread.name}: {e}")
+        # Log thread cleanup information
+        if threads_to_wait:
+            self.logger.info(
+                f"Waiting for {len(threads_to_wait)} client threads to finish..."
+            )
+
+            # Wait for threads to complete with individual timeouts
+            for i, thread in enumerate(threads_to_wait):
+                try:
+                    self.logger.debug(
+                        f"Waiting for thread {thread.name} ({i + 1}/{len(threads_to_wait)})"
+                    )
+                    thread.join(timeout=3.0)  # Wait up to 3 seconds per thread
+
+                    if thread.is_alive():
+                        self.logger.warning(
+                            f"Thread {thread.name} did not finish within timeout"
+                        )
+                    else:
+                        self.logger.debug(f"Thread {thread.name} finished successfully")
+
+                except Exception as e:
+                    self.logger.log_exception(f"Error joining thread {thread.name}", e)
+
+            # Check for any remaining threads
+            remaining_threads = [t for t in threads_to_wait if t.is_alive()]
+            if remaining_threads:
+                self.logger.warning(
+                    f"{len(remaining_threads)} client threads still running after cleanup"
+                )
+                for thread in remaining_threads:
+                    self.logger.warning(f"  - {thread.name} (daemon: {thread.daemon})")
+            else:
+                self.logger.info("All client threads finished successfully")
+        else:
+            self.logger.debug("No client threads to clean up")
 
         self.logger.info("Client handler stopped and all resources cleaned up")
 

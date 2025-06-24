@@ -385,7 +385,7 @@ class ClientCharacter:
 
         # Encode and write coordinates
         x = WorldCoords.encode_server_coord(self.x)
-        y = WorldCoords.encode_server_coord(-self.y)  # Note: Y is negated
+        y = WorldCoords.encode_server_coord(self.y)
         z = WorldCoords.encode_server_coord(self.z)
         t = WorldCoords.encode_server_coord(self.angle)
 
@@ -510,10 +510,9 @@ class ClientCharacter:
         stream.write_int((self.money & 0b11111111000000000000) >> 12, 8)
         stream.write_int((self.money & 0b1111111100000000000000000000) >> 20, 8)
         stream.write_int((self.money & 0b11110000000000000000000000000000) >> 28, 8)
-
         # Convert to bytearray and set packet length
         data = bytearray(stream.to_bytes())
-        data[0] = len(data)
+        data[0] = len(data) % 256
 
         return data
 
