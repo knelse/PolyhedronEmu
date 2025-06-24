@@ -21,6 +21,8 @@ class ClientStateManager:
         self.logger = logger
         # player_index -> ClientState
         self._client_states: Dict[int, ClientState] = {}
+        # player_index -> user_id
+        self._client_user_ids: Dict[int, str] = {}
         self._state_lock = threading.Lock()
 
     def add_client(self, player_index: int) -> None:
@@ -49,6 +51,8 @@ class ClientStateManager:
             if player_index in self._client_states:
                 old_state = self._client_states[player_index]
                 del self._client_states[player_index]
+                if player_index in self._client_user_ids:
+                    del self._client_user_ids[player_index]
                 msg = (
                     f"Client 0x{player_index:04X} removed from state "
                     f"tracking (was in {old_state.name.lower()})"
@@ -182,3 +186,41 @@ class ClientStateManager:
                 for client_state in self._client_states.values()
                 if client_state == state
             )
+
+    def set_user_id(self, player_index: int, user_id: str) -> bool:
+        """
+        Set the user_id for a client.
+
+        Args:
+            player_index: The player's unique index
+            user_id: The user's login ID
+
+        Returns:
+            True if set successfully, False if client not found
+        """
+        with self._state_lock:
+            if player_index not in self._client_states:
+                msg = (
+                    f"Attempted to set user_id for unknown client "
+                    f"0x{player_index:04X}"
+                )
+                self.logger.warning(msg)
+                return False
+
+            self._client_user_ids[player_index] = user_id
+            msg = f"Set user_id '{user_id}' for client 0x{player_index:04X}"
+            self.logger.debug(msg)
+            return True
+
+    def get_user_id(self, player_index: int) -> Optional[str]:
+        """
+        Get the user_id for a client.
+
+        Args:
+            player_index: The player's unique index
+
+        Returns:
+            The user_id if found, None otherwise
+        """
+        with self._state_lock:
+            return self._client_user_ids.get(player_index)

@@ -13,6 +13,8 @@ from utils.login_utils import (
     decrypt_login_and_password,
 )
 from utils.socket_utils import SocketUtils
+from server.auth_pipeline import auth_pipeline
+from data_models.mongodb_models import CharacterDatabase
 
 
 class ClientHandler:
@@ -23,6 +25,7 @@ class ClientHandler:
         self.player_manager = player_manager
         self.parent_node = parent_node
         self.state_manager = ClientStateManager(logger)
+        self.character_db = CharacterDatabase()
         self.is_running = False
         self.client_nodes = {}  # player_index -> Node3D
         self.nodes_lock = threading.Lock()
@@ -159,6 +162,55 @@ class ClientHandler:
                     f"login={decrypted_login}, password={decrypted_password}"
                 )
                 self.logger.info(msg)
+
+                # Authenticate or register user
+                auth_result = auth_pipeline.authenticate_or_register(
+                    decrypted_login, decrypted_password
+                )
+
+                if not auth_result.success:
+                    msg = (
+                        f"Authentication failed for player 0x{player_index:04X}: "
+                        f"{auth_result.message}"
+                    )
+                    self.logger.warning(msg)
+
+                    # Send connection error packet and close connection for any failure
+                    failure_packet = auth_pipeline.get_authentication_failure_packet(
+                        player_index
+                    )
+                    SocketUtils.send(
+                        client_socket,
+                        failure_packet,
+                        player_index,
+                        self.logger,
+                        f"Sent connection error to player 0x{player_index:04X}: "
+                        f"{failure_packet.hex().upper()}",
+                    )
+                    # Close connection immediately for any authentication failure
+                    try:
+                        client_socket.close()
+                    except Exception:
+                        pass
+                    self._cleanup_client(client_socket, player_index)
+                    return
+
+                # Log successful authentication
+                if auth_result.is_new_user:
+                    msg = (
+                        f"New user registered and authenticated: {auth_result.user.login} "
+                        f"(player 0x{player_index:04X})"
+                    )
+                else:
+                    msg = (
+                        f"User authenticated: {auth_result.user.login} "
+                        f"(player 0x{player_index:04X}, login #{auth_result.user.login_count})"
+                    )
+                self.logger.info(msg)
+
+                # Store user_id for later use
+                self.state_manager.set_user_id(player_index, auth_result.user.login)
+
             except Exception as e:
                 msg = f"Failed to decode login data for player 0x{player_index:04X}"
                 self.logger.log_exception(msg, e)
@@ -183,7 +235,9 @@ class ClientHandler:
 
             # Send 3x new character data back-to-back
             time.sleep(0.1)
-            char_data_packet = self._create_triple_character_data(player_index)
+            char_data_packet = self._create_triple_character_data(
+                player_index, auth_result.user.login
+            )
             send_packet_success = SocketUtils.send(
                 client_socket,
                 char_data_packet,
@@ -356,6 +410,37 @@ class ClientHandler:
 
                 if len(data) > 0 and data[0] == 0x2A:
                     self.logger.debug("Requested character delete")
+                    if len(data) >= 18:
+                        character_slot_index = data[17] // 4 - 1
+                        user_id = self.state_manager.get_user_id(player_index)
+                        if user_id:
+                            success = self.character_db.delete_character_by_user_index(
+                                user_id, character_slot_index
+                            )
+                            if success:
+                                msg = (
+                                    f"Player 0x{player_index:04X} deleted character "
+                                    f"at slot {character_slot_index}"
+                                )
+                                self.logger.info(msg)
+                            else:
+                                msg = (
+                                    f"Player 0x{player_index:04X} failed to delete "
+                                    f"character at slot {character_slot_index}"
+                                )
+                                self.logger.warning(msg)
+                        else:
+                            msg = (
+                                f"Player 0x{player_index:04X} attempted character "
+                                f"delete but no user_id found"
+                            )
+                            self.logger.warning(msg)
+                    else:
+                        msg = (
+                            f"Player 0x{player_index:04X} sent character delete "
+                            f"packet too short: {len(data)} bytes"
+                        )
+                        self.logger.warning(msg)
                     self._cleanup_client(client_socket, player_index)
                     return False
 
@@ -402,41 +487,52 @@ class ClientHandler:
             self._cleanup_client(client_socket, player_index)
             return False
 
-    def _create_triple_character_data(self, player_index: int) -> bytes:
+    def _create_triple_character_data(self, player_index: int, user_id: str) -> bytes:
         """
-        Create a packet containing 3x get_new_character_data back-to-back without separators.
+        Create a packet containing 3 character data entries back-to-back.
+        Uses actual characters from database, filling with defaults if needed.
 
         Args:
             player_index: The player's index
+            user_id: The user's login ID to fetch characters for
 
         Returns:
             Combined packet data
         """
-        character_1 = ClientCharacter()
-        character_1.player_index = player_index
-        character_2 = ClientCharacter()
-        character_2.player_index = player_index
-        character_2.name = "Test2"
-        character_3 = ClientCharacter()
-        character_3.player_index = player_index
-        character_3.name = "Test3"
-        char_data1 = (
-            character_1.to_character_list_bytearray()
-        )  # ServerPackets.get_new_character_data(player_index)
-        char_data2 = (
-            character_2.to_character_list_bytearray()
-        )  # ServerPackets.get_new_character_data(player_index)
-        char_data3 = (
-            character_3.to_character_list_bytearray()
-        )  # ServerPackets.get_new_character_data(player_index)
+        # Fetch user's characters from database
+        user_characters = self.character_db.get_characters_by_user(user_id)
+
+        # Create 3 characters (mix of user's actual characters and defaults)
+        characters = []
+
+        # Use actual characters up to 3, then fill with defaults
+        for i in range(3):
+            if i < len(user_characters):
+                # Convert MongoDB character to ClientCharacter
+                character = user_characters[i].to_client_character()
+                character.player_index = player_index
+                characters.append(character)
+            else:
+                # Create default character
+                character = ClientCharacter()
+                character.player_index = player_index
+                character.name = "<create new>"
+                characters.append(character)
+
+        # Generate character data packets
+        char_data_packets = []
+        for character in characters:
+            char_data = character.to_character_list_bytearray()
+            char_data_packets.append(char_data)
 
         # Combine all three packets without separators
-        combined_packet = char_data1 + char_data2 + char_data3
+        combined_packet = b"".join(char_data_packets)
 
         msg = (
-            f"Created triple character data for player 0x{player_index:04X}, "
-            f"total length: {len(combined_packet)} bytes "
-            f"(3x {len(char_data1)} bytes each)"
+            f"Created triple character data for user {user_id} "
+            f"(player 0x{player_index:04X}): {len(user_characters)} actual characters, "
+            f"{3 - len(user_characters)} default characters, "
+            f"total length: {len(combined_packet)} bytes"
         )
         self.logger.debug(msg)
 
