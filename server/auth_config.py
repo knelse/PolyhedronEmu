@@ -73,7 +73,7 @@ class AuthConfig:
     @property
     def min_password_length(self) -> int:
         """Get minimum password length."""
-        return self.config.get("min_password_length", 3)
+        return self.config.get("min_password_length", 1)
 
     @property
     def case_sensitive_login(self) -> bool:
