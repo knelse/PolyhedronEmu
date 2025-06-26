@@ -5,7 +5,7 @@ This module contains packet definitions and constants used for communication
 between the server and clients.
 """
 
-from utils.time_utils import encode_ingame_time
+from server.utils.time_utils import encode_ingame_time
 from utils.bitstream_utils import SimpleBitStream
 
 

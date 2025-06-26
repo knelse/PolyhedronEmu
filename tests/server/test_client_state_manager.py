@@ -2,6 +2,7 @@ import threading
 import unittest
 from unittest.mock import Mock
 from server.client_state_manager import ClientStateManager, ClientState
+from server.exceptions import StateTransitionException
 from unittest import TestCase
 import sys
 import os
@@ -210,18 +211,16 @@ class TestClientStateManager(TestCase):
         def add_and_transition_client(player_index):
             try:
                 self.state_manager.add_client(player_index)
-                success1 = self.state_manager.transition_state(
+                self.state_manager.transition_state(
                     player_index, ClientState.INIT_READY_FOR_INITIAL_DATA
                 )
-                success2 = self.state_manager.transition_state(
+                self.state_manager.transition_state(
                     player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
                 )
-                success3 = self.state_manager.transition_state(
+                self.state_manager.transition_state(
                     player_index, ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
                 )
-                results.append(
-                    f"success_{player_index}_{success1}_{success2}_{success3}"
-                )
+                results.append(f"success_{player_index}")
             except Exception as e:
                 results.append(f"error_{player_index}_{e}")
 
@@ -236,9 +235,7 @@ class TestClientStateManager(TestCase):
         for thread in threads:
             thread.join()
 
-        success_count = sum(
-            1 for r in results if r.startswith("success_") and "True_True_True" in r
-        )
+        success_count = sum(1 for r in results if r.startswith("success_"))
         self.assertEqual(success_count, len(players))
 
         char_select_clients = self.state_manager.get_clients_by_state(
@@ -254,26 +251,23 @@ class TestClientStateManager(TestCase):
         self.assertEqual(current_state, ClientState.BASE)
 
         # Sequential transition: BASE -> INIT_READY
-        result = self.state_manager.transition_state(
+        self.state_manager.transition_state(
             self.player_index, ClientState.INIT_READY_FOR_INITIAL_DATA
         )
-        self.assertTrue(result)
         current_state = self.state_manager.get_client_state(self.player_index)
         self.assertEqual(current_state, ClientState.INIT_READY_FOR_INITIAL_DATA)
 
         # Sequential transition: INIT_READY -> LOGIN
-        result = self.state_manager.transition_state(
+        self.state_manager.transition_state(
             self.player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
-        self.assertTrue(result)
         current_state = self.state_manager.get_client_state(self.player_index)
         self.assertEqual(current_state, ClientState.INIT_WAITING_FOR_LOGIN_DATA)
 
         # Sequential transition: LOGIN -> CHARACTER_SELECT
-        result = self.state_manager.transition_state(
+        self.state_manager.transition_state(
             self.player_index, ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
         )
-        self.assertTrue(result)
         current_state = self.state_manager.get_client_state(self.player_index)
         self.assertEqual(current_state, ClientState.INIT_WAITING_FOR_CHARACTER_SELECT)
 
@@ -284,45 +278,36 @@ class TestClientStateManager(TestCase):
         # Valid transitions: BASE(0) -> INIT_READY(1) -> LOGIN(2) -> CHARACTER_SELECT(3)
 
         # Test valid sequential transition: BASE -> INIT_READY
-        result = self.state_manager.transition_state(
+        self.state_manager.transition_state(
             self.player_index, ClientState.INIT_READY_FOR_INITIAL_DATA
         )
-        self.assertTrue(result)
 
         # Test valid sequential transition: INIT_READY -> LOGIN
-        result = self.state_manager.transition_state(
+        self.state_manager.transition_state(
             self.player_index, ClientState.INIT_WAITING_FOR_LOGIN_DATA
         )
-        self.assertTrue(result)
 
         # Test invalid skip ahead
-        result = self.state_manager.transition_state(
-            self.player_index, ClientState.IN_GAME
-        )
-        self.assertFalse(result)
+        with self.assertRaises(StateTransitionException):
+            self.state_manager.transition_state(self.player_index, ClientState.IN_GAME)
 
         # Current state should still be LOGIN
         current_state = self.state_manager.get_client_state(self.player_index)
         self.assertEqual(current_state, ClientState.INIT_WAITING_FOR_LOGIN_DATA)
 
         # Continue with valid progression
-        result = self.state_manager.transition_state(
+        self.state_manager.transition_state(
             self.player_index, ClientState.INIT_WAITING_FOR_CHARACTER_SELECT
         )
-        self.assertTrue(result)
 
         # Test trying to skip back
-        result = self.state_manager.transition_state(
-            self.player_index, ClientState.BASE
-        )
-        self.assertFalse(result)
+        with self.assertRaises(StateTransitionException):
+            self.state_manager.transition_state(self.player_index, ClientState.BASE)
 
     def test_transition_state_unknown_client(self):
         """Test transition for unknown client."""
-        result = self.state_manager.transition_state(
-            self.player_index, ClientState.IN_GAME
-        )
-        self.assertFalse(result)
+        with self.assertRaises(StateTransitionException):
+            self.state_manager.transition_state(self.player_index, ClientState.IN_GAME)
 
         expected_msg = (
             f"Cannot transition unknown client " f"0x{self.player_index:04X} to in_game"

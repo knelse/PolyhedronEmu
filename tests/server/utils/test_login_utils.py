@@ -1,7 +1,7 @@
 import unittest
 import sys
 import os
-from utils.login_utils import (
+from server.utils.login_utils import (
     get_encrypted_login_and_password,
     get_login_data_info,
     decrypt_login_and_password,

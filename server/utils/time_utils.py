@@ -1,6 +1,6 @@
 import time
 from datetime import datetime, timedelta, timezone
-from .bitstream_utils import SimpleBitStream
+from utils.bitstream_utils import SimpleBitStream
 
 
 def get_ingame_time():

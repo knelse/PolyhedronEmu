@@ -6,7 +6,7 @@ import traceback
 from server.config import load_config
 from server.logger import create_logger
 from server.player_manager import PlayerManager
-from server.client_handler import ClientHandler
+from server.client_pre_ingame_handler import ClientPreIngameHandler
 from server.signal_handler import SignalHandler
 
 
@@ -24,7 +24,9 @@ class main_server_node(Node3D):
 
             self.logger = create_logger()
             self.player_manager = PlayerManager()
-            self.client_handler = ClientHandler(self.logger, self.player_manager, self)
+            self.client_handler = ClientPreIngameHandler(
+                self.logger, self.player_manager, self
+            )
 
             # Initialize signal handler for graceful shutdown
             self.signal_handler = SignalHandler(self.logger)

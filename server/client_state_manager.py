@@ -2,6 +2,7 @@ import threading
 from enum import Enum
 from typing import Dict, Optional
 from server.logger import ServerLogger
+from server.exceptions import StateTransitionException
 
 
 class ClientState(Enum):
@@ -105,7 +106,7 @@ class ClientStateManager:
         with self._state_lock:
             return self._client_states.get(player_index)
 
-    def transition_state(self, player_index: int, new_state: ClientState) -> bool:
+    def transition_state(self, player_index: int, new_state: ClientState) -> None:
         """
         Transition a client from their current state to a new state.
         Validates that the transition follows the expected sequential order.
@@ -114,8 +115,8 @@ class ClientStateManager:
             player_index: The player's unique index
             new_state: The new state to transition to
 
-        Returns:
-            True if transition was successful, False otherwise
+        Raises:
+            StateTransitionException: If the transition fails
         """
         with self._state_lock:
             current_state = self._client_states.get(player_index)
@@ -126,7 +127,7 @@ class ClientStateManager:
                     f"0x{player_index:04X} to {new_state.name.lower()}"
                 )
                 self.logger.warning(msg)
-                return False
+                raise StateTransitionException(msg)
 
             if new_state.value != current_state.value + 1:
                 msg = (
@@ -134,7 +135,7 @@ class ClientStateManager:
                     f"{current_state.name.lower()} to {new_state.name.lower()}"
                 )
                 self.logger.warning(msg)
-                return False
+                raise StateTransitionException(msg)
 
             self._client_states[player_index] = new_state
             msg = (
@@ -142,7 +143,6 @@ class ClientStateManager:
                 f"{new_state.name.lower()}"
             )
             self.logger.info(msg)
-            return True
 
     def get_clients_by_state(self, state: ClientState) -> list[int]:
         """

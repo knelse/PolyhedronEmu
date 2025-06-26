@@ -3,7 +3,7 @@ import sys
 import os
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
-from utils.time_utils import get_ingame_time, encode_ingame_time
+from server.utils.time_utils import get_ingame_time, encode_ingame_time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
