@@ -15,6 +15,9 @@ class ServerPackets:
     # Initialization packet sent to new clients when they connect
     INIT_PACKET = bytes([0x0A, 0x00, 0xC8, 0x00, 0x6C, 0x07, 0x00, 0x00, 0x40, 0x0E])
 
+    # Transmission end packet
+    TRANSMISSION_END_PACKET = bytes([0x04, 0x00, 0xF4, 0x01])
+
     def get_server_credentials(player_index: int) -> bytes:
         stream = SimpleBitStream()
         current_time = encode_ingame_time()
@@ -776,5 +779,23 @@ class ServerPackets:
 
         return stream.to_bytes()
 
+    @staticmethod
+    def keepalive_6_seconds(player_index: int) -> bytes:
+        """Generate a 6-second keepalive packet for the specified player."""
+        stream = SimpleBitStream()
+        stream.write_bytes(bytes([0x06, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
+        stream.write_int(player_index, 16)
+        return stream.to_bytes()
+
+    @staticmethod
+    def keepalive_15_seconds(player_index: int) -> bytes:
+        """Generate a 15-second keepalive packet for the specified player."""
+        stream = SimpleBitStream()
+        stream.write_bytes(bytes([0x0A, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
+        stream.write_int(player_index, 16)
+        stream.write_bytes(bytes([0x08, 0x00]))
+        return stream.to_bytes()
+
 
 INIT_PACKET = ServerPackets.INIT_PACKET
+TRANSMISSION_END_PACKET = ServerPackets.TRANSMISSION_END_PACKET
