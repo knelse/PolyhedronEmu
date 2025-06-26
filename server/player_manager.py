@@ -35,8 +35,8 @@ class PlayerManager:
         """
         with self._players_lock:
             self._active_players[player_index] = {
-                'address': address,
-                'connected_at': threading.get_native_id()
+                "address": address,
+                "connected_at": threading.get_native_id(),
             }
 
     def remove_player(self, player_index: int) -> None:
@@ -69,3 +69,37 @@ class PlayerManager:
         """
         with self._players_lock:
             return self._active_players.copy()
+
+    def reserve_index(self, player_index: int) -> None:
+        """
+        Reserve a player index (mark it as in use).
+        This is typically called when a player index is assigned to a client.
+
+        Args:
+            player_index: The player index to reserve
+        """
+        with self._index_lock:
+            self._available_indices.discard(player_index)
+
+    def release_index(self, player_index: int) -> None:
+        """
+        Release a player index and make it available for reuse.
+        This is an alias for remove_player for consistency with the API.
+
+        Args:
+            player_index: The player index to release
+        """
+        self.remove_player(player_index)
+
+    def release_all_indices(self) -> None:
+        """
+        Release all player indices and clear all active players.
+        This is typically called during server shutdown.
+        """
+        with self._players_lock, self._index_lock:
+            player_count = len(self._active_players)
+            if player_count > 0:
+                self._active_players.clear()
+                self._available_indices.clear()
+            # Reset the next player index to initial value
+            self._next_player_index = self.INITIAL_PLAYER_INDEX

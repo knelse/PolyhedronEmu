@@ -77,7 +77,7 @@ class TestClientPreIngameHandler(unittest.TestCase):
         self.mock_parent_node = MockNode3D()
 
         # Add missing methods to player manager mock
-        self.mock_player_manager.get_next_available_index = MagicMock()
+        self.mock_player_manager.get_next_player_index = MagicMock()
         self.mock_player_manager.reserve_index = MagicMock()
         self.mock_player_manager.release_index = MagicMock()
         self.mock_player_manager.release_all_indices = MagicMock()
@@ -140,7 +140,7 @@ class TestClientPreIngameHandler(unittest.TestCase):
         address = ("127.0.0.1", 12345)
 
         # Mock no available slots
-        self.mock_player_manager.get_next_available_index.return_value = None
+        self.mock_player_manager.get_next_player_index.return_value = None
 
         def mock_is_running():
             return True
@@ -175,7 +175,7 @@ class TestClientPreIngameHandler(unittest.TestCase):
         player_index = 0x5000
 
         # Mock available slot
-        self.mock_player_manager.get_next_available_index.return_value = player_index
+        self.mock_player_manager.get_next_player_index.return_value = player_index
 
         # Mock credentials failure
         mock_send_creds.side_effect = ServerCredentialsException(

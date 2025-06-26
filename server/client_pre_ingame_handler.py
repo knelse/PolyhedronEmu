@@ -2,9 +2,10 @@ import socket
 import threading
 from typing import Callable
 from server.logger import ServerLogger
+from server.player.player_ingame_handler import PlayerIngameHandler
 from server.player_manager import PlayerManager
 from server.client_state_manager import ClientStateManager, ClientState
-from server.utils.socket_utils import ServerSocketUtils
+
 from server.enter_game_world_handler import EnterGameWorldHandler
 from server.enter_game_world_pipeline import (
     LoginHandler,
@@ -16,8 +17,12 @@ from data_models.mongodb_models import CharacterDatabase
 
 try:
     from py4godot.classes.Node3D import Node3D
+    from py4godot.classes.ResourceLoader import ResourceLoader
+    from py4godot.classes.PackedScene import PackedScene
 except ImportError:
     Node3D = object
+    ResourceLoader = object
+    PackedScene = object
 
 
 class ClientPreIngameHandler:
@@ -97,7 +102,7 @@ class ClientPreIngameHandler:
         """
         player_index = None
         try:
-            player_index = self.player_manager.get_next_available_index()
+            player_index = self.player_manager.get_next_player_index()
             if player_index is None:
                 msg = f"No available player slots for {address}"
                 self.logger.warning(msg)
@@ -157,7 +162,6 @@ class ClientPreIngameHandler:
                 self.state_manager,
             )
 
-            # Handle ingame ack and world entry
             self.enter_game_world_handler.handle_ingame_ack_and_world_entry(
                 client_socket,
                 player_index,
@@ -165,42 +169,12 @@ class ClientPreIngameHandler:
                 self.state_manager,
             )
 
-            # Start ongoing client communication loop
-            msg = f"Started communication loop for player 0x{player_index:04X}"
-            self.logger.debug(msg)
-
-            while is_running():
-                try:
-                    data = ServerSocketUtils.receive_packet_with_logging(
-                        client_socket,
-                        player_index,
-                        self.logger,
-                        1024,
-                        10.0,
-                        "client communication",
-                    )
-
-                    if not data:
-                        break
-
-                    # TODO: Handle ongoing game packets here
-                    # For now, just log the received data
-                    msg = (
-                        f"Player 0x{player_index:04X} sent packet: "
-                        f"{data.hex().upper()}"
-                    )
-                    self.logger.debug(msg)
-
-                except socket.timeout:
-                    continue
-                except ConnectionResetError:
-                    msg = f"Player 0x{player_index:04X} ({address}) connection reset"
-                    self.logger.info(msg)
-                    break
-                except Exception as e:
-                    msg = f"Error in communication with player 0x{player_index:04X}"
-                    self.logger.log_exception(msg, e)
-                    break
+            self._create_player_instance_and_transfer_control(
+                client_socket,
+                player_index,
+                user_id,
+                is_running,
+            )
 
         except Exception as e:
             msg = f"Error in client thread for {address}"
@@ -210,6 +184,68 @@ class ClientPreIngameHandler:
         finally:
             if player_index is not None:
                 self._cleanup_client(client_socket, player_index)
+
+    def _create_player_instance_and_transfer_control(
+        self,
+        client_socket: socket.socket,
+        player_index: int,
+        user_id: str,
+        is_running: Callable[[], bool],
+    ) -> None:
+        """
+        Create a Player scene instance and transfer control to its PlayerIngameHandler.
+
+        Args:
+            client_socket: The client's socket connection
+            player_index: The player's index
+            user_id: The user's ID
+            is_running: A callable that returns whether the server is still running
+        """
+        try:
+            msg = f"Creating Player instance for player 0x{player_index:04X}"
+            self.logger.info(msg)
+
+            # Load the Player scene
+            resource_loader = ResourceLoader.instance()
+            player_scene = resource_loader.load("res://Player.tscn")
+
+            if not player_scene:
+                raise RuntimeError("Failed to load Player.tscn")
+
+            player_instance_scene = player_scene.instantiate()
+
+            self.parent_node.call_deferred("add_child", player_instance_scene)
+            player_instance_scene.set_script(PlayerIngameHandler)
+            player_instance = player_instance_scene.get_pyscript()
+
+            if not player_instance:
+                raise RuntimeError("Failed to instantiate Player scene")
+
+            # Assign fields directly to the player instance
+            player_instance.client_socket = client_socket
+            player_instance.player_index = player_index
+            player_instance.logger = self.logger
+            player_instance.state_manager = self.state_manager
+            player_instance.user_id = user_id
+            player_instance.player_manager = self.player_manager
+            player_instance.is_running = is_running
+
+            with self._threads_lock:
+                thread_id = threading.current_thread().ident
+                if thread_id in self._client_threads:
+                    self._client_threads[thread_id]["player_instance"] = player_instance
+
+        except Exception as e:
+            msg = f"Failed to create Player instance for player 0x{player_index:04X}"
+            self.logger.log_exception(msg, e)
+            # Clean up on failure
+            if "player_instance" in locals() and player_instance:
+                try:
+                    self.parent_node.call_deferred("remove_child", player_instance)
+                    player_instance.queue_free()
+                except Exception:
+                    pass
+            raise
 
     def _cleanup_client(self, client_socket: socket.socket, player_index: int) -> None:
         """
@@ -254,8 +290,62 @@ class ClientPreIngameHandler:
         Returns:
             Node3D: The client's node
         """
-        # This would be implemented based on the specific game engine requirements
+        # Check if we have a Player instance for this player
+        player_instance = self.get_player_instance(player_index)
+        if player_instance:
+            return player_instance
+
+        # Fallback to parent node for pre-ingame clients
         return self.parent_node
+
+    def get_player_instance(self, player_index: int):
+        """
+        Get the PlayerIngameHandler instance for a specific player.
+
+        Args:
+            player_index: The player's index
+
+        Returns:
+            PlayerIngameHandler instance if found, None otherwise
+        """
+        with self._threads_lock:
+            for thread_info in self._client_threads.values():
+                if (
+                    thread_info.get("player_index") == player_index
+                    and "player_instance" in thread_info
+                ):
+                    return thread_info["player_instance"]
+        return None
+
+    def get_all_player_instances(self) -> dict:
+        """
+        Get all active PlayerIngameHandler instances.
+
+        Returns:
+            Dictionary mapping player_index to PlayerIngameHandler instances
+        """
+        player_instances = {}
+        with self._threads_lock:
+            for thread_info in self._client_threads.values():
+                player_index = thread_info.get("player_index")
+                player_instance = thread_info.get("player_instance")
+                if player_index is not None and player_instance is not None:
+                    player_instances[player_index] = player_instance
+        return player_instances
+
+    def get_ingame_player_count(self) -> int:
+        """
+        Get the number of players that have transferred to ingame handling.
+
+        Returns:
+            Number of players with active PlayerIngameHandler instances
+        """
+        count = 0
+        with self._threads_lock:
+            for thread_info in self._client_threads.values():
+                if "player_instance" in thread_info:
+                    count += 1
+        return count
 
     def get_active_client_count(self) -> int:
         """

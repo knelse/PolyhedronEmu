@@ -4,6 +4,48 @@ import traceback
 from datetime import datetime
 
 
+def cleanup_old_logs(log_dir: str = "logs", max_files: int = 20) -> None:
+    """
+    Clean up old log files, keeping only the most recent max_files.
+
+    Args:
+        log_dir: Directory containing log files
+        max_files: Maximum number of log files to keep
+    """
+    try:
+        if not os.path.exists(log_dir):
+            return
+
+        log_files = []
+        for filename in os.listdir(log_dir):
+            if filename.startswith("server_") and filename.endswith(".log"):
+                filepath = os.path.join(log_dir, filename)
+                if os.path.isfile(filepath):
+                    log_files.append((filepath, os.path.getmtime(filepath)))
+
+        if len(log_files) <= max_files:
+            return
+
+        log_files.sort(key=lambda x: x[1], reverse=True)
+
+        files_to_remove = log_files[max_files:]
+        for filepath, _ in files_to_remove:
+            try:
+                os.remove(filepath)
+                print(f"Removed old log file: {os.path.basename(filepath)}")
+            except Exception as e:
+                print(f"Failed to remove log file {filepath}: {e}")
+
+        if files_to_remove:
+            print(
+                f"Log cleanup complete: kept {max_files} most recent files, "
+                f"removed {len(files_to_remove)} old files"
+            )
+
+    except Exception as e:
+        print(f"Error during log cleanup: {e}")
+
+
 class ServerLogger:
     def __init__(self, name: str = "TCPServer", log_dir: str = "logs"):
         self.logger = self._setup_logger(name, log_dir)
@@ -16,6 +58,8 @@ class ServerLogger:
         try:
             if not os.path.exists(log_dir):
                 os.makedirs(log_dir)
+
+            cleanup_old_logs(log_dir)
 
             logger = logging.getLogger(name)
             logger.setLevel(logging.DEBUG)

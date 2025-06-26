@@ -32,11 +32,11 @@ class CharacterScreenHandler:
             state_manager: The client state manager
 
         Returns:
-            int: character slot index if character creation succeeded
+            int: character slot index if character creation or selection succeeded
 
         Raises:
             CharacterScreenException: If character screen interaction fails or character
-                is selected/deleted
+                is deleted
         """
         try:
             while True:
@@ -112,17 +112,12 @@ class CharacterScreenHandler:
                                 f"at slot {character_slot_index}"
                             )
                             logger.info(msg)
-
-                            raise CharacterScreenException(
-                                f"Player 0x{player_index:04X} selected existing character "
-                                f"at slot {character_slot_index} - connection should be closed"
-                            )
+                            return character_slot_index
                         else:
-                            msg = (
+                            raise CharacterScreenException(
                                 f"Player 0x{player_index:04X} tried to select "
                                 f"non-existent character at slot {character_slot_index}"
                             )
-                            logger.warning(msg)
                     else:
                         msg = (
                             f"Player 0x{player_index:04X} attempted character "

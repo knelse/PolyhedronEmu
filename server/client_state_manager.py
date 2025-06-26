@@ -225,3 +225,29 @@ class ClientStateManager:
         """
         with self._state_lock:
             return self._client_user_ids.get(player_index)
+
+    def cleanup_client(self, player_index: int) -> None:
+        """
+        Clean up a client's state and user_id information.
+        This is an alias for remove_client for consistency with the API.
+
+        Args:
+            player_index: The player's unique index
+        """
+        self.remove_client(player_index)
+
+    def cleanup_all_clients(self) -> None:
+        """
+        Clean up all clients' state and user_id information.
+        This is typically called during server shutdown.
+        """
+        with self._state_lock:
+            client_count = len(self._client_states)
+            if client_count > 0:
+                self._client_states.clear()
+                self._client_user_ids.clear()
+                self.logger.info(
+                    f"Cleaned up all {client_count} clients from state tracking"
+                )
+            else:
+                self.logger.debug("No clients to clean up")

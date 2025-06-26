@@ -46,6 +46,45 @@ class TestCharacterScreenHandler(unittest.TestCase):
             "ServerSocketUtils.receive_packet_with_logging"
         )
         with patch(patch_path, return_value=select_packet):
+            result = self.handler.wait_for_character_screen_interaction(
+                self.mock_socket,
+                self.player_index,
+                self.mock_logger,
+                self.mock_state_manager,
+            )
+
+            self.assertEqual(
+                result, 0
+            )  # Should return character slot index (4//4 - 1 = 0)
+            self.mock_logger.info.assert_called()
+
+            # Verify the database was queried correctly
+            mock_collection.find_one.assert_called_once_with(
+                {
+                    "user_id": "testuser",
+                    "character_slot_index": 0,
+                    "is_not_queued_for_deletion": True,
+                }
+            )
+
+    def test_wait_for_character_screen_interaction_select_nonexistent_character(self):
+        """Test character selection when character doesn't exist."""
+        select_packet = bytearray(50)
+        select_packet[0] = 0x15  # Character select packet
+        select_packet[17] = 0x08  # Character slot (8//4 - 1 = 1)
+
+        self.mock_state_manager.get_user_id.return_value = "testuser"
+
+        # Mock database to return None (character doesn't exist)
+        mock_collection = MagicMock()
+        mock_collection.find_one.return_value = None
+        self.mock_character_db.characters = mock_collection
+
+        patch_path = (
+            "server.enter_game_world_pipeline.character_screen_handler."
+            "ServerSocketUtils.receive_packet_with_logging"
+        )
+        with patch(patch_path, return_value=select_packet):
             with self.assertRaises(CharacterScreenException) as cm:
                 self.handler.wait_for_character_screen_interaction(
                     self.mock_socket,
@@ -54,7 +93,8 @@ class TestCharacterScreenHandler(unittest.TestCase):
                     self.mock_state_manager,
                 )
 
-            self.assertIn("selected existing character", str(cm.exception))
+            self.assertIn("tried to select non-existent character", str(cm.exception))
+            self.assertIn("slot 1", str(cm.exception))
 
     def test_wait_for_character_screen_interaction_create_character(self):
         """Test character creation interaction."""

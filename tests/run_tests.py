@@ -8,27 +8,29 @@ import unittest
 import sys
 import os
 
+from server.logger import cleanup_old_logs
+
+
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 def run_tests():
     """Discover and run all tests."""
-    # Get the directory containing this script
+    cleanup_old_logs("logs")
+    cleanup_old_logs("tests/logs")
+
     test_dir = os.path.dirname(__file__)
 
-    # Discover all test files
     loader = unittest.TestLoader()
     start_dir = test_dir
     pattern = "test_*.py"
 
     suite = loader.discover(start_dir, pattern)
 
-    # Run the tests with verbose output
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
 
-    # Return exit code based on test results
     return 0 if result.wasSuccessful() else 1
 
 

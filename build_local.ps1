@@ -194,46 +194,44 @@ function Build-Project {
             }
         }
         
-        # Copy server modules for Python imports
-        $serverSrc = "server"
-        $serverDest = "$BUILDS_DIR\server"
-        
-        if (Test-Path $serverSrc) {
-            if (-not (Test-Path $serverDest)) {
-                New-Item -ItemType Directory -Path $serverDest -Force | Out-Null
-            }
-            $serverUpdated = $false
-            Get-ChildItem "$serverSrc\*.py" | Where-Object { $_.Extension -notin @(".tmp", ".TMP") } | ForEach-Object {
-                $destFile = Join-Path $serverDest $_.Name
-                if (Should-CopyFile $_.FullName $destFile) {
-                    Copy-Item $_.FullName $destFile -Force
-                    $serverUpdated = $true
-                    Write-Host "  ✅ Updated $($_.Name)" -ForegroundColor Green
-                } else {
-                    Write-Host "  ⏭️  Skipped $($_.Name) (up to date)" -ForegroundColor Gray
-                }
-            }
-            if (-not $serverUpdated) {
-                Write-Host "  ⏭️  All server modules up to date" -ForegroundColor Gray
-            }
+        # Copy ALL Python files from ALL subdirectories (excluding specific folders)
+        $excludedDirs = @("addons", "logs", ".builds", ".godot", "tests")
+        $allPythonFiles = Get-ChildItem -Path "." -Filter "*.py" -Recurse | Where-Object { 
+            $_.Extension -notin @(".tmp", ".TMP") -and
+            $_.Name -ne "ci_monitor.py" -and
+            $_.FullName -notlike "*\tests\*" -and
+            $_.FullName -notlike "*\addons\*" -and
+            $_.FullName -notlike "*\logs\*" -and
+            $_.FullName -notlike "*\.builds\*" -and
+            $_.FullName -notlike "*\.godot\*"
         }
         
-        # Copy all Python files from root (excluding test files, ci_monitor.py, and .tmp/.TMP files)
-        $pythonFiles = Get-ChildItem -Filter "*.py" -File | Where-Object { $_.Name -notlike "*test*" -and $_.Name -ne "ci_monitor.py" -and $_.Extension -notin @(".tmp", ".TMP") }
-        $rootPyUpdated = $false
-        foreach ($pyFile in $pythonFiles) {
-            $destFile = Join-Path $BUILDS_DIR $pyFile.Name
+        $pythonFilesUpdated = $false
+        foreach ($pyFile in $allPythonFiles) {
+            # Calculate relative path from project root
+            $relativePath = $pyFile.FullName.Substring((Get-Location).Path.Length + 1)
+            $destFile = Join-Path $BUILDS_DIR $relativePath
+            $destDir = Split-Path $destFile -Parent
+            
+            # Create destination directory if it doesn't exist
+            if (-not (Test-Path $destDir)) {
+                New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+            }
+            
             if (Should-CopyFile $pyFile.FullName $destFile) {
                 Copy-Item $pyFile.FullName $destFile -Force
-                Write-Host "  ✅ Updated $($pyFile.Name)" -ForegroundColor Green
-                $rootPyUpdated = $true
+                Write-Host "  ✅ Updated $relativePath" -ForegroundColor Green
+                $pythonFilesUpdated = $true
             } else {
-                Write-Host "  ⏭️  Skipped $($pyFile.Name) (up to date)" -ForegroundColor Gray
+                Write-Host "  ⏭️  Skipped $relativePath (up to date)" -ForegroundColor Gray
             }
         }
-        if (-not $rootPyUpdated -and $pythonFiles.Count -gt 0) {
-            Write-Host "  ⏭️  All root Python files up to date" -ForegroundColor Gray
+        
+        if (-not $pythonFilesUpdated -and $allPythonFiles.Count -gt 0) {
+            Write-Host "  ⏭️  All Python files up to date" -ForegroundColor Gray
         }
+        
+
         
         # Copy server_config.json
         if (Test-Path "server_config.json") {
@@ -278,37 +276,7 @@ function Build-Project {
             Write-Host "  ⏭️  All config files up to date" -ForegroundColor Gray
         }
         
-        # Copy any Python packages/subdirectories (excluding tests and .tmp/.TMP files)
-        $pythonDirs = Get-ChildItem -Directory | Where-Object { $_.Name -notlike "*test*" -and $_.Name -notin @("addons", "server", "logs", ".builds", ".godot") }
-        foreach ($pyDir in $pythonDirs) {
-            if ((Get-ChildItem "$($pyDir.FullName)\*.py" -ErrorAction SilentlyContinue).Count -gt 0) {
-                $destDir = "$BUILDS_DIR\$($pyDir.Name)"
-                if (-not (Test-Path $destDir)) {
-                    New-Item -ItemType Directory -Path $destDir -Force | Out-Null
-                }
-                
-                $packageUpdated = $false
-                # Copy files excluding .tmp/.TMP files, only if newer
-                Get-ChildItem "$($pyDir.FullName)" -Recurse -File | Where-Object { $_.Extension -notin @(".tmp", ".TMP") } | ForEach-Object {
-                    $relativePath = $_.FullName.Substring($pyDir.FullName.Length + 1)
-                    $destFilePath = Join-Path $destDir $relativePath
-                    if (Should-CopyFile $_.FullName $destFilePath) {
-                        $destFileDir = Split-Path $destFilePath -Parent
-                        if (-not (Test-Path $destFileDir)) {
-                            New-Item -ItemType Directory -Path $destFileDir -Force | Out-Null
-                        }
-                        Copy-Item $_.FullName $destFilePath -Force
-                        $packageUpdated = $true
-                    }
-                }
-                
-                if ($packageUpdated) {
-                    Write-Host "  ✅ Updated Python package: $($pyDir.Name)" -ForegroundColor Green
-                } else {
-                    Write-Host "  ⏭️  Skipped Python package: $($pyDir.Name) (up to date)" -ForegroundColor Gray
-                }
-            }
-        }
+
     }
     
     if ($LASTEXITCODE -eq 0) {
