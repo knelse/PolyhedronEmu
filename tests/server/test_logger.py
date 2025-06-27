@@ -1,6 +1,6 @@
 import unittest
 
-from server.logger import ServerLogger, create_logger
+from server.logger import server_logger, create_logger
 from unittest.mock import Mock, patch
 import tempfile
 import shutil
@@ -16,12 +16,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 
 class TestServerLogger(unittest.TestCase):
-    """Test cases for ServerLogger class."""
+    """Test cases for server_logger class."""
 
     def setUp(self):
         """Set up test fixtures."""
         self.test_log_dir = tempfile.mkdtemp()
-        self.logger = ServerLogger('TestServer', self.test_log_dir)
+        self.logger = server_logger('TestServer', self.test_log_dir)
 
     def tearDown(self):
         """Clean up test fixtures."""
@@ -54,7 +54,7 @@ class TestServerLogger(unittest.TestCase):
         new_log_dir = tempfile.mkdtemp()
         try:
             shutil.rmtree(new_log_dir)
-            test_logger = ServerLogger('DirTest', new_log_dir)
+            test_logger = server_logger('DirTest', new_log_dir)
             self.assertTrue(os.path.exists(new_log_dir))
 
             for handler in test_logger.logger.handlers[:]:
@@ -70,7 +70,7 @@ class TestServerLogger(unittest.TestCase):
 
     def test_log_file_creation(self):
         """Test log file is created with correct naming pattern."""
-        test_logger = ServerLogger('FileCreationTest', self.test_log_dir)
+        test_logger = server_logger('FileCreationTest', self.test_log_dir)
         test_logger.info("Test log file creation")
 
         log_files = [
@@ -145,13 +145,13 @@ class TestServerLogger(unittest.TestCase):
     def test_multiple_logger_instances_no_duplicate_handlers(self):
         """Test that multiple logger instances don't create duplicate
         handlers."""
-        logger1 = ServerLogger('DuplicateTest', self.test_log_dir)
-        logger2 = ServerLogger('DuplicateTest', self.test_log_dir)
+        logger1 = server_logger('DuplicateTest', self.test_log_dir)
+        logger2 = server_logger('DuplicateTest', self.test_log_dir)
 
         self.assertIs(logger1.logger, logger2.logger)
 
         handler_count = len(logger1.logger.handlers)
-        logger3 = ServerLogger('DuplicateTest', self.test_log_dir)
+        logger3 = server_logger('DuplicateTest', self.test_log_dir)
         self.assertEqual(len(logger3.logger.handlers), handler_count)
 
         for logger in [logger1, logger2, logger3]:
@@ -165,7 +165,7 @@ class TestServerLogger(unittest.TestCase):
         with patch('os.makedirs',
                    side_effect=PermissionError("Permission denied")):
             with patch('builtins.print') as mock_print:
-                logger = ServerLogger('ErrorTest', '/invalid/path')
+                logger = server_logger('ErrorTest', '/invalid/path')
 
                 self.assertIsInstance(logger.logger, logging.Logger)
                 mock_print.assert_called()
@@ -177,7 +177,7 @@ class TestCreateLogger(unittest.TestCase):
     def test_create_logger_default_params(self):
         """Test create_logger with default parameters."""
         logger = create_logger()
-        self.assertIsInstance(logger, ServerLogger)
+        self.assertIsInstance(logger, server_logger)
         self.assertEqual(logger.logger.name, 'TCPServer')
 
         for handler in logger.logger.handlers[:]:
@@ -190,7 +190,7 @@ class TestCreateLogger(unittest.TestCase):
         test_dir = tempfile.mkdtemp()
         try:
             logger = create_logger('CustomServer', test_dir)
-            self.assertIsInstance(logger, ServerLogger)
+            self.assertIsInstance(logger, server_logger)
             self.assertEqual(logger.logger.name, 'CustomServer')
             self.assertTrue(os.path.exists(test_dir))
 

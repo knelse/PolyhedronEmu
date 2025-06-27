@@ -1,16 +1,16 @@
 import unittest
-from server.player_manager import PlayerManager
+from server.player_manager import player_manager
 
 
 class TestPlayerManager(unittest.TestCase):
-    """Test PlayerManager functionality."""
+    """Test player_manager functionality."""
 
     def setUp(self):
         """Set up test fixtures."""
-        self.player_manager = PlayerManager()
+        self.player_manager = player_manager()
 
     def test_initial_state(self):
-        """Test that PlayerManager starts in a clean state."""
+        """Test that player_manager starts in a clean state."""
         self.assertEqual(self.player_manager.get_player_count(), 0)
         self.assertEqual(len(self.player_manager.get_all_players()), 0)
 
@@ -57,7 +57,7 @@ class TestPlayerManager(unittest.TestCase):
         """Test behavior when reaching maximum player limit."""
         original_next = self.player_manager._next_player_index
         self.player_manager._next_player_index = (
-            PlayerManager.MAX_PLAYER_INDEX + 1)
+            player_manager.MAX_PLAYER_INDEX + 1)
 
         self.assertIsNone(self.player_manager.get_next_player_index())
 

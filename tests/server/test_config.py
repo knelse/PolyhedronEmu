@@ -12,17 +12,12 @@ class TestConfig(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.test_config = {
-            "server": {
-                "host": "127.0.0.1",
-                "port": 12345,
-                "backlog": 10
-            }
+            "server": {"host": "127.0.0.1", "port": 12345, "backlog": 10}
         }
 
     def test_load_config_with_existing_file(self):
         """Test loading configuration from an existing file."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json',
-                                         delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(self.test_config, f)
             temp_file = f.name
 
@@ -45,7 +40,7 @@ class TestConfig(unittest.TestCase):
 
             self.assertTrue(os.path.exists(non_existent_file))
 
-            with open(non_existent_file, 'r') as f:
+            with open(non_existent_file, "r") as f:
                 file_config = json.load(f)
             self.assertEqual(file_config, DEFAULT_CONFIG)
         finally:
@@ -54,30 +49,35 @@ class TestConfig(unittest.TestCase):
 
     def test_load_config_handles_json_decode_error(self):
         """Test configuration loading handles malformed JSON gracefully."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json',
-                                         delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("invalid json content {")
             temp_file = f.name
 
         try:
-            with patch('builtins.print') as mock_print:
+            with patch("logging.getLogger") as mock_get_logger:
+                mock_logger = mock_get_logger.return_value
                 config = load_config(temp_file)
                 self.assertEqual(config, DEFAULT_CONFIG)
-                mock_print.assert_called()
-                self.assertTrue(any("Error loading config" in str(call)
-                                    for call in mock_print.call_args_list))
+                mock_logger.error.assert_called()
+                self.assertTrue(
+                    any(
+                        "Error loading config" in str(call)
+                        for call in mock_logger.error.call_args_list
+                    )
+                )
         finally:
             os.unlink(temp_file)
 
     def test_load_config_handles_file_permission_error(self):
         """Test that configuration loading handles file permission errors."""
-        with patch('builtins.open', mock_open()) as mock_file:
+        with patch("builtins.open", mock_open()) as mock_file:
             mock_file.side_effect = PermissionError("Permission denied")
 
-            with patch('builtins.print') as mock_print:
+            with patch("logging.getLogger") as mock_get_logger:
+                mock_logger = mock_get_logger.return_value
                 config = load_config("restricted_file.json")
                 self.assertEqual(config, DEFAULT_CONFIG)
-                mock_print.assert_called()
+                mock_logger.error.assert_called()
 
     def test_default_config_structure(self):
         """Test that default configuration has the expected structure."""
@@ -107,5 +107,5 @@ class TestConfig(unittest.TestCase):
                 os.unlink(default_file)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

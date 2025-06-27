@@ -2,13 +2,13 @@ import sys
 import unittest
 from unittest.mock import MagicMock, patch
 from server.enter_game_world_pipeline.character_screen_handler import (
-    CharacterScreenHandler,
+    character_screen_handler,
 )
-from server.enter_game_world_pipeline.exceptions import CharacterScreenException
-from server.logger import ServerLogger
-from server.client_state_manager import ClientStateManager
-from data_models.mongodb_models import CharacterDatabase
-from server.packets import ServerPackets
+from server.enter_game_world_pipeline.exceptions import character_screen_exception
+from server.logger import server_logger
+from server.client_state_manager import client_state_manager
+from data_models.mongodb_models import character_database
+from server.packets import server_packets
 
 sys.modules["py4godot"] = MagicMock()
 sys.modules["py4godot.classes"] = MagicMock()
@@ -20,10 +20,10 @@ class TestCharacterScreenHandler(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.mock_logger = MagicMock(spec=ServerLogger)
-        self.mock_state_manager = MagicMock(spec=ClientStateManager)
-        self.mock_character_db = MagicMock(spec=CharacterDatabase)
-        self.handler = CharacterScreenHandler(self.mock_character_db)
+        self.mock_logger = MagicMock(spec=server_logger)
+        self.mock_state_manager = MagicMock(spec=client_state_manager)
+        self.mock_character_db = MagicMock(spec=character_database)
+        self.handler = character_screen_handler(self.mock_character_db)
         self.player_index = 0x5000
         self.mock_socket = MagicMock()
 
@@ -43,7 +43,7 @@ class TestCharacterScreenHandler(unittest.TestCase):
 
         patch_path = (
             "server.enter_game_world_pipeline.character_screen_handler."
-            "ServerSocketUtils.receive_packet_with_logging"
+            "server_socket_utils.receive_packet_with_logging"
         )
         with patch(patch_path, return_value=select_packet):
             result = self.handler.wait_for_character_screen_interaction(
@@ -82,10 +82,10 @@ class TestCharacterScreenHandler(unittest.TestCase):
 
         patch_path = (
             "server.enter_game_world_pipeline.character_screen_handler."
-            "ServerSocketUtils.receive_packet_with_logging"
+            "server_socket_utils.receive_packet_with_logging"
         )
         with patch(patch_path, return_value=select_packet):
-            with self.assertRaises(CharacterScreenException) as cm:
+            with self.assertRaises(character_screen_exception) as cm:
                 self.handler.wait_for_character_screen_interaction(
                     self.mock_socket,
                     self.player_index,
@@ -110,7 +110,7 @@ class TestCharacterScreenHandler(unittest.TestCase):
 
         patch_path = (
             "server.enter_game_world_pipeline.character_screen_handler."
-            "ServerSocketUtils.receive_packet_with_logging"
+            "server_socket_utils.receive_packet_with_logging"
         )
         with patch(patch_path, return_value=create_packet):
             with patch.object(
@@ -120,7 +120,7 @@ class TestCharacterScreenHandler(unittest.TestCase):
             ):
                 with patch(
                     "server.enter_game_world_pipeline.character_screen_handler."
-                    "ServerSocketUtils.send_packet_or_cleanup",
+                    "server_socket_utils.send_packet_or_cleanup",
                     return_value=True,
                 ) as mock_send:
                     result = self.handler.wait_for_character_screen_interaction(
@@ -136,7 +136,7 @@ class TestCharacterScreenHandler(unittest.TestCase):
                     # Verify the actual packet sent is the character name check success
                     mock_send.assert_called_once()
                     sent_packet = mock_send.call_args[0][1]
-                    expected_packet = ServerPackets.character_name_check_success(
+                    expected_packet = server_packets.character_name_check_success(
                         self.player_index
                     )
                     self.assertEqual(sent_packet, expected_packet)
@@ -155,7 +155,7 @@ class TestCharacterScreenHandler(unittest.TestCase):
 
         patch_path = (
             "server.enter_game_world_pipeline.character_screen_handler."
-            "ServerSocketUtils.receive_packet_with_logging"
+            "server_socket_utils.receive_packet_with_logging"
         )
         with patch(patch_path, return_value=create_packet):
             with patch.object(
@@ -165,10 +165,10 @@ class TestCharacterScreenHandler(unittest.TestCase):
             ):
                 with patch(
                     "server.enter_game_world_pipeline.character_screen_handler."
-                    "ServerSocketUtils.send_packet_or_cleanup",
+                    "server_socket_utils.send_packet_or_cleanup",
                     return_value=True,
                 ) as mock_send:
-                    with self.assertRaises(CharacterScreenException) as cm:
+                    with self.assertRaises(character_screen_exception) as cm:
                         self.handler.wait_for_character_screen_interaction(
                             self.mock_socket,
                             self.player_index,
@@ -181,7 +181,7 @@ class TestCharacterScreenHandler(unittest.TestCase):
                     # Verify the actual packet sent is the character name already taken
                     mock_send.assert_called_once()
                     sent_packet = mock_send.call_args[0][1]
-                    expected_packet = ServerPackets.character_name_already_taken(
+                    expected_packet = server_packets.character_name_already_taken(
                         self.player_index
                     )
                     self.assertEqual(sent_packet, expected_packet)
@@ -193,10 +193,10 @@ class TestCharacterScreenHandler(unittest.TestCase):
 
         patch_path = (
             "server.enter_game_world_pipeline.character_screen_handler."
-            "ServerSocketUtils.receive_packet_with_logging"
+            "server_socket_utils.receive_packet_with_logging"
         )
         with patch(patch_path, side_effect=[invalid_packet, None]):  # Invalid then None
-            with self.assertRaises(CharacterScreenException) as cm:
+            with self.assertRaises(character_screen_exception) as cm:
                 self.handler.wait_for_character_screen_interaction(
                     self.mock_socket,
                     self.player_index,
@@ -210,10 +210,10 @@ class TestCharacterScreenHandler(unittest.TestCase):
         """Test when no data is received."""
         patch_path = (
             "server.enter_game_world_pipeline.character_screen_handler."
-            "ServerSocketUtils.receive_packet_with_logging"
+            "server_socket_utils.receive_packet_with_logging"
         )
         with patch(patch_path, return_value=None):
-            with self.assertRaises(CharacterScreenException) as cm:
+            with self.assertRaises(character_screen_exception) as cm:
                 self.handler.wait_for_character_screen_interaction(
                     self.mock_socket,
                     self.player_index,
@@ -227,10 +227,10 @@ class TestCharacterScreenHandler(unittest.TestCase):
         """Test exception during character screen interaction."""
         patch_path = (
             "server.enter_game_world_pipeline.character_screen_handler."
-            "ServerSocketUtils.receive_packet_with_logging"
+            "server_socket_utils.receive_packet_with_logging"
         )
         with patch(patch_path, side_effect=Exception("Test error")):
-            with self.assertRaises(CharacterScreenException) as cm:
+            with self.assertRaises(character_screen_exception) as cm:
                 self.handler.wait_for_character_screen_interaction(
                     self.mock_socket,
                     self.player_index,

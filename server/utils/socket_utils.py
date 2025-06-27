@@ -7,10 +7,10 @@ with integrated logging and error handling.
 
 import socket
 from typing import Optional
-from server.logger import ServerLogger
+from server.logger import server_logger
 
 
-class ServerSocketUtils:
+class server_socket_utils:
     """Utility class for server socket operations with logging."""
 
     @staticmethod
@@ -18,7 +18,7 @@ class ServerSocketUtils:
         client_socket: socket.socket,
         packet_data: bytes,
         player_index: int,
-        logger: ServerLogger,
+        logger: server_logger,
         success_message: str,
         error_context: str = "packet send",
     ) -> bool:
@@ -61,7 +61,7 @@ class ServerSocketUtils:
     def receive_packet_with_logging(
         client_socket: socket.socket,
         player_index: int,
-        logger: ServerLogger,
+        logger: server_logger,
         buffer_size: int = 1024,
         timeout: Optional[float] = None,
         error_context: str = "packet receive",
@@ -118,7 +118,7 @@ class ServerSocketUtils:
         client_socket: socket.socket,
         packet_data: bytes,
         player_index: int,
-        logger: ServerLogger,
+        logger: server_logger,
         success_message: str,
         cleanup_callback,
         error_context: str = "packet send",
@@ -138,7 +138,7 @@ class ServerSocketUtils:
         Returns:
             True if packet was sent successfully, False if failed (cleanup was called)
         """
-        success = ServerSocketUtils.send_packet_with_logging(
+        success = server_socket_utils.send_packet_with_logging(
             client_socket,
             packet_data,
             player_index,

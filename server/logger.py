@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 import traceback
 from datetime import datetime
 
@@ -46,7 +47,7 @@ def cleanup_old_logs(log_dir: str = "logs", max_files: int = 20) -> None:
         print(f"Error during log cleanup: {e}")
 
 
-class ServerLogger:
+class server_logger:
     def __init__(self, name: str = "TCPServer", log_dir: str = "logs"):
         self.logger = self._setup_logger(name, log_dir)
 
@@ -72,16 +73,25 @@ class ServerLogger:
             fh = logging.FileHandler(filename)
             fh.setLevel(logging.DEBUG)
 
-            ch = logging.StreamHandler()
+            # Create console handler that sends INFO and below to stdout, ERROR+ to stderr
+            ch = logging.StreamHandler(sys.stdout)
             ch.setLevel(logging.DEBUG)
+            # Filter to exclude ERROR and CRITICAL from stdout
+            ch.addFilter(lambda record: record.levelno < logging.ERROR)
+
+            # Create separate error handler for stderr
+            error_ch = logging.StreamHandler(sys.stderr)
+            error_ch.setLevel(logging.ERROR)
 
             fmt = "%(asctime)s - %(levelname)s - %(message)s"
             formatter = logging.Formatter(fmt)
             fh.setFormatter(formatter)
             ch.setFormatter(formatter)
+            error_ch.setFormatter(formatter)
 
             logger.addHandler(fh)
             logger.addHandler(ch)
+            logger.addHandler(error_ch)
 
             logger.info("Logging system initialized")
             return logger
@@ -121,6 +131,6 @@ class ServerLogger:
         self.logger.error(msg)
 
 
-def create_logger(name: str = "TCPServer", log_dir: str = "logs") -> ServerLogger:
-    """Create and return a new ServerLogger instance."""
-    return ServerLogger(name, log_dir)
+def create_logger(name: str = "TCPServer", log_dir: str = "logs") -> server_logger:
+    """Create and return a new server_logger instance."""
+    return server_logger(name, log_dir)

@@ -1,11 +1,11 @@
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
-from server.enter_game_world_pipeline.enter_game_handler import EnterGameHandler
-from server.enter_game_world_pipeline.exceptions import EnterGameException
-from server.logger import ServerLogger
-from server.client_state_manager import ClientStateManager
-from data_models.mongodb_models import CharacterDatabase
+from server.enter_game_world_pipeline.enter_game_handler import enter_game_handler
+from server.enter_game_world_pipeline.exceptions import enter_game_exception
+from server.logger import server_logger
+from server.client_state_manager import client_state_manager
+from data_models.mongodb_models import character_database
 
 sys.modules["py4godot"] = MagicMock()
 sys.modules["py4godot.classes"] = MagicMock()
@@ -17,18 +17,18 @@ class TestEnterGameHandler(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.mock_logger = MagicMock(spec=ServerLogger)
-        self.mock_state_manager = MagicMock(spec=ClientStateManager)
-        self.mock_character_db = MagicMock(spec=CharacterDatabase)
-        self.handler = EnterGameHandler(self.mock_character_db)
+        self.mock_logger = MagicMock(spec=server_logger)
+        self.mock_state_manager = MagicMock(spec=client_state_manager)
+        self.mock_character_db = MagicMock(spec=character_database)
+        self.handler = enter_game_handler(self.mock_character_db)
         self.player_index = 0x5000
         self.mock_socket = MagicMock()
 
     @patch(
         "server.enter_game_world_pipeline.enter_game_handler."
-        "ServerSocketUtils.send_packet_with_logging"
+        "server_socket_utils.send_packet_with_logging"
     )
-    @patch("data_models.mongodb_models.ClientCharacterMongo")
+    @patch("data_models.mongodb_models.client_character_mongo")
     def test_send_enter_game_data_success(self, mock_char_mongo, mock_send_packet):
         """Test successful enter game data sending."""
         mock_send_packet.return_value = True
@@ -73,7 +73,7 @@ class TestEnterGameHandler(unittest.TestCase):
         # Mock state manager to return None user_id
         self.mock_state_manager.get_user_id.return_value = None
 
-        with self.assertRaises(EnterGameException) as cm:
+        with self.assertRaises(enter_game_exception) as cm:
             self.handler.send_enter_game_data(
                 1,  # character_slot_index
                 self.player_index,
@@ -95,7 +95,7 @@ class TestEnterGameHandler(unittest.TestCase):
         mock_collection.find_one.return_value = None
         self.mock_character_db.characters = mock_collection
 
-        with self.assertRaises(EnterGameException) as cm:
+        with self.assertRaises(enter_game_exception) as cm:
             self.handler.send_enter_game_data(
                 1,  # character_slot_index
                 self.player_index,
@@ -108,9 +108,9 @@ class TestEnterGameHandler(unittest.TestCase):
 
     @patch(
         "server.enter_game_world_pipeline.enter_game_handler."
-        "ServerSocketUtils.send_packet_with_logging"
+        "server_socket_utils.send_packet_with_logging"
     )
-    @patch("data_models.mongodb_models.ClientCharacterMongo")
+    @patch("data_models.mongodb_models.client_character_mongo")
     def test_send_enter_game_data_packet_send_failure(
         self, mock_char_mongo, mock_send_packet
     ):
@@ -139,7 +139,7 @@ class TestEnterGameHandler(unittest.TestCase):
             mock_character
         )
 
-        with self.assertRaises(EnterGameException) as cm:
+        with self.assertRaises(enter_game_exception) as cm:
             self.handler.send_enter_game_data(
                 1,  # character_slot_index
                 self.player_index,

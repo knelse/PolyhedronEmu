@@ -1,11 +1,11 @@
 import threading
 from enum import Enum
 from typing import Dict, Optional
-from server.logger import ServerLogger
-from server.exceptions import StateTransitionException
+from server.logger import server_logger
+from server.exceptions import state_transition_exception
 
 
-class ClientState(Enum):
+class client_state(Enum):
     """Enumeration of possible client states."""
 
     BASE = 0
@@ -16,13 +16,13 @@ class ClientState(Enum):
     IN_GAME = 5
 
 
-class ClientStateManager:
+class client_state_manager:
     """Manages the state of connected clients."""
 
-    def __init__(self, logger: ServerLogger):
+    def __init__(self, logger: server_logger):
         self.logger = logger
-        # player_index -> ClientState
-        self._client_states: Dict[int, ClientState] = {}
+        # player_index -> client_state
+        self._client_states: Dict[int, client_state] = {}
         # player_index -> user_id
         self._client_user_ids: Dict[int, str] = {}
         self._state_lock = threading.Lock()
@@ -35,10 +35,10 @@ class ClientStateManager:
             player_index: The player's unique index
         """
         with self._state_lock:
-            self._client_states[player_index] = ClientState.BASE
+            self._client_states[player_index] = client_state.BASE
             msg = (
                 f"Client 0x{player_index:04X} added with state: "
-                f"{ClientState.BASE.name.lower()}"
+                f"{client_state.BASE.name.lower()}"
             )
             self.logger.info(msg)
 
@@ -61,7 +61,7 @@ class ClientStateManager:
                 )
                 self.logger.info(msg)
 
-    def set_client_state(self, player_index: int, new_state: ClientState) -> bool:
+    def set_client_state(self, player_index: int, new_state: client_state) -> bool:
         """
         Set a client's state.
 
@@ -93,7 +93,7 @@ class ClientStateManager:
 
             return True
 
-    def get_client_state(self, player_index: int) -> Optional[ClientState]:
+    def get_client_state(self, player_index: int) -> Optional[client_state]:
         """
         Get a client's current state.
 
@@ -106,7 +106,7 @@ class ClientStateManager:
         with self._state_lock:
             return self._client_states.get(player_index)
 
-    def transition_state(self, player_index: int, new_state: ClientState) -> None:
+    def transition_state(self, player_index: int, new_state: client_state) -> None:
         """
         Transition a client from their current state to a new state.
         Validates that the transition follows the expected sequential order.
@@ -116,7 +116,7 @@ class ClientStateManager:
             new_state: The new state to transition to
 
         Raises:
-            StateTransitionException: If the transition fails
+            state_transition_exception: If the transition fails
         """
         with self._state_lock:
             current_state = self._client_states.get(player_index)
@@ -127,7 +127,7 @@ class ClientStateManager:
                     f"0x{player_index:04X} to {new_state.name.lower()}"
                 )
                 self.logger.warning(msg)
-                raise StateTransitionException(msg)
+                raise state_transition_exception(msg)
 
             if new_state.value != current_state.value + 1:
                 msg = (
@@ -135,7 +135,7 @@ class ClientStateManager:
                     f"{current_state.name.lower()} to {new_state.name.lower()}"
                 )
                 self.logger.warning(msg)
-                raise StateTransitionException(msg)
+                raise state_transition_exception(msg)
 
             self._client_states[player_index] = new_state
             msg = (
@@ -144,7 +144,7 @@ class ClientStateManager:
             )
             self.logger.info(msg)
 
-    def get_clients_by_state(self, state: ClientState) -> list[int]:
+    def get_clients_by_state(self, state: client_state) -> list[int]:
         """
         Get all client indices that are in a specific state.
 
@@ -161,7 +161,7 @@ class ClientStateManager:
                 if client_state == state
             ]
 
-    def get_all_client_states(self) -> Dict[int, ClientState]:
+    def get_all_client_states(self) -> Dict[int, client_state]:
         """
         Get a copy of all client states.
 
@@ -171,7 +171,7 @@ class ClientStateManager:
         with self._state_lock:
             return self._client_states.copy()
 
-    def get_client_count_by_state(self, state: ClientState) -> int:
+    def get_client_count_by_state(self, state: client_state) -> int:
         """
         Get the count of clients in a specific state.
 

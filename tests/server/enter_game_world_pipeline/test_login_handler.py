@@ -2,9 +2,9 @@ import sys
 import socket
 import unittest
 from unittest.mock import MagicMock, patch
-from server.enter_game_world_pipeline.login_handler import LoginHandler
-from server.enter_game_world_pipeline.exceptions import LoginException
-from server.logger import ServerLogger
+from server.enter_game_world_pipeline.login_handler import login_handler
+from server.enter_game_world_pipeline.exceptions import login_exception
+from server.logger import server_logger
 
 sys.modules["py4godot"] = MagicMock()
 sys.modules["py4godot.classes"] = MagicMock()
@@ -16,7 +16,7 @@ class TestLoginHandler(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.mock_logger = MagicMock(spec=ServerLogger)
+        self.mock_logger = MagicMock(spec=server_logger)
         self.player_index = 0x5000
 
     def test_wait_for_login_packet_success(self):
@@ -26,10 +26,10 @@ class TestLoginHandler(unittest.TestCase):
 
         patch_path = (
             "server.enter_game_world_pipeline.login_handler."
-            "ServerSocketUtils.receive_packet_with_logging"
+            "server_socket_utils.receive_packet_with_logging"
         )
         with patch(patch_path, return_value=valid_packet):
-            result = LoginHandler.wait_for_login_packet(
+            result = login_handler.wait_for_login_packet(
                 mock_socket, self.player_index, self.mock_logger
             )
 
@@ -44,12 +44,12 @@ class TestLoginHandler(unittest.TestCase):
 
         patch_path = (
             "server.enter_game_world_pipeline.login_handler."
-            "ServerSocketUtils.receive_packet_with_logging"
+            "server_socket_utils.receive_packet_with_logging"
         )
         with patch(
             patch_path, side_effect=[short_packet, valid_packet]
         ) as mock_receive:
-            result = LoginHandler.wait_for_login_packet(
+            result = login_handler.wait_for_login_packet(
                 mock_socket, self.player_index, self.mock_logger
             )
 
@@ -62,11 +62,11 @@ class TestLoginHandler(unittest.TestCase):
 
         patch_path = (
             "server.enter_game_world_pipeline.login_handler."
-            "ServerSocketUtils.receive_packet_with_logging"
+            "server_socket_utils.receive_packet_with_logging"
         )
         with patch(patch_path, return_value=None):
-            with self.assertRaises(LoginException) as cm:
-                LoginHandler.wait_for_login_packet(
+            with self.assertRaises(login_exception) as cm:
+                login_handler.wait_for_login_packet(
                     mock_socket, self.player_index, self.mock_logger
                 )
 
@@ -78,11 +78,11 @@ class TestLoginHandler(unittest.TestCase):
 
         patch_path = (
             "server.enter_game_world_pipeline.login_handler."
-            "ServerSocketUtils.receive_packet_with_logging"
+            "server_socket_utils.receive_packet_with_logging"
         )
         with patch(patch_path, side_effect=socket.timeout()):
-            with self.assertRaises(LoginException) as cm:
-                LoginHandler.wait_for_login_packet(
+            with self.assertRaises(login_exception) as cm:
+                login_handler.wait_for_login_packet(
                     mock_socket, self.player_index, self.mock_logger
                 )
 
@@ -95,11 +95,11 @@ class TestLoginHandler(unittest.TestCase):
 
         patch_path = (
             "server.enter_game_world_pipeline.login_handler."
-            "ServerSocketUtils.receive_packet_with_logging"
+            "server_socket_utils.receive_packet_with_logging"
         )
         with patch(patch_path, side_effect=test_exception):
-            with self.assertRaises(LoginException) as cm:
-                LoginHandler.wait_for_login_packet(
+            with self.assertRaises(login_exception) as cm:
+                login_handler.wait_for_login_packet(
                     mock_socket, self.player_index, self.mock_logger
                 )
 

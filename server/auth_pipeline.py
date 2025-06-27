@@ -4,11 +4,11 @@ Authorization pipeline for user authentication and registration.
 
 from enum import Enum
 from typing import Optional
-from data_models.user_models import User, UserDatabase
-from server.auth_config import auth_config
+from data_models.user_models import polyhedron_user, polyhedron_user_database
+from server.auth_config import default_auth_config as auth_config
 
 
-class AuthResultType(Enum):
+class auth_result_type(Enum):
     """Enumeration of authentication result types."""
 
     SUCCESS = "success"
@@ -20,34 +20,39 @@ class AuthResultType(Enum):
     UNKNOWN_ERROR = "unknown_error"
 
 
-class AuthResult:
+class auth_result:
     """Result of an authentication attempt."""
 
     def __init__(
         self,
         success: bool,
-        result_type: AuthResultType,
-        user: Optional[User] = None,
-        is_new_user: bool = False,
+        result_type: auth_result_type,
+        polyhedron_user_obj: Optional[polyhedron_user] = None,
+        is_new_polyhedron_user: bool = False,
         details: Optional[str] = None,
     ):
         self.success = success
         self.result_type = result_type
-        self.user = user
-        self.is_new_user = is_new_user
+        self.user = polyhedron_user_obj
+        self.is_new_user = is_new_polyhedron_user
         self.details = details
+
+    @property
+    def is_new_polyhedron_user(self) -> bool:
+        """Alias for is_new_user to maintain compatibility."""
+        return self.is_new_user
 
     @property
     def message(self) -> str:
         """Get human-readable message for the result."""
         messages = {
-            AuthResultType.SUCCESS: "Authentication successful",
-            AuthResultType.INVALID_PASSWORD: "Invalid password",
-            AuthResultType.REGISTRATION_SUCCESS: "Registration successful",
-            AuthResultType.REGISTRATION_FAILED: "Registration failed",
-            AuthResultType.VALIDATION_ERROR: "Validation error",
-            AuthResultType.DATABASE_ERROR: "Database error",
-            AuthResultType.UNKNOWN_ERROR: "Unknown error",
+            auth_result_type.SUCCESS: "Authentication successful",
+            auth_result_type.INVALID_PASSWORD: "Invalid password",
+            auth_result_type.REGISTRATION_SUCCESS: "Registration successful",
+            auth_result_type.REGISTRATION_FAILED: "Registration failed",
+            auth_result_type.VALIDATION_ERROR: "Validation error",
+            auth_result_type.DATABASE_ERROR: "Database error",
+            auth_result_type.UNKNOWN_ERROR: "Unknown error",
         }
         base_message = messages.get(self.result_type, "Unknown result")
         if self.details:
@@ -56,12 +61,12 @@ class AuthResult:
 
     def __str__(self) -> str:
         status = "SUCCESS" if self.success else "FAILED"
-        user_info = f" (user: {self.user.login})" if self.user else ""
+        user_info = f" (polyhedron_user: {self.user.login})" if self.user else ""
         new_user_info = " [NEW USER]" if self.is_new_user else ""
         return f"Auth {status}: {self.result_type.value}{user_info}{new_user_info}"
 
 
-class AuthorizationPipeline:
+class authorization_pipeline:
     """Main authorization pipeline for handling user authentication."""
 
     def __init__(
@@ -69,34 +74,34 @@ class AuthorizationPipeline:
         connection_string: str = "mongodb://localhost:27017/",
         database_name: str = "polyhedron_emu",
     ):
-        self.user_db = UserDatabase(connection_string, database_name)
+        self.user_db = polyhedron_user_database(connection_string, database_name)
 
-    def authenticate_or_register(self, login: str, password: str) -> AuthResult:
+    def authenticate_or_register(self, login: str, password: str) -> auth_result:
         """
         Authenticate existing user or register new user.
 
         Args:
-            login: User login from decrypt_login_and_password
-            password: User password from decrypt_login_and_password
+            login: user login from decrypt_login_and_password
+            password: user password from decrypt_login_and_password
 
         Returns:
-            AuthResult: Result of authentication/registration attempt
+            auth_result: Result of authentication/registration attempt
         """
         try:
             # Validate input
             if not login or not login.strip():
-                return AuthResult(
+                return auth_result(
                     False,
-                    AuthResultType.VALIDATION_ERROR,
+                    auth_result_type.VALIDATION_ERROR,
                     None,
                     False,
                     "Login cannot be empty",
                 )
 
             if not password or not password.strip():
-                return AuthResult(
+                return auth_result(
                     False,
-                    AuthResultType.VALIDATION_ERROR,
+                    auth_result_type.VALIDATION_ERROR,
                     None,
                     False,
                     "Password cannot be empty",
@@ -107,90 +112,96 @@ class AuthorizationPipeline:
 
             # Check length limits
             if len(login) > auth_config.max_login_length:
-                return AuthResult(
+                return auth_result(
                     False,
-                    AuthResultType.VALIDATION_ERROR,
+                    auth_result_type.VALIDATION_ERROR,
                     None,
                     False,
                     f"Login too long (max {auth_config.max_login_length})",
                 )
 
             if len(password) > auth_config.max_password_length:
-                return AuthResult(
+                return auth_result(
                     False,
-                    AuthResultType.VALIDATION_ERROR,
+                    auth_result_type.VALIDATION_ERROR,
                     None,
                     False,
                     f"Password too long (max {auth_config.max_password_length})",
                 )
 
             if len(password) < auth_config.min_password_length:
-                return AuthResult(
+                return auth_result(
                     False,
-                    AuthResultType.VALIDATION_ERROR,
+                    auth_result_type.VALIDATION_ERROR,
                     None,
                     False,
                     f"Password too short (min {auth_config.min_password_length})",
                 )
 
             # Try to authenticate existing user first
-            auth_success, auth_message, user = self.user_db.authenticate_user(
-                login, password
+            auth_success, auth_message, polyhedron_user_obj = (
+                self.user_db.authenticate_polyhedron_user(login, password)
             )
 
-            if auth_success and user:
-                return AuthResult(True, AuthResultType.SUCCESS, user, False)
+            if auth_success and polyhedron_user_obj:
+                return auth_result(
+                    True, auth_result_type.SUCCESS, polyhedron_user_obj, False
+                )
 
             # If user not found, try to register as new user
-            if auth_message == "User not found":
+            if auth_message == "polyhedron_user not found":
                 return self._register_new_user(login, password)
 
             # If user exists but password is wrong, return authentication failure
-            return AuthResult(
-                False, AuthResultType.INVALID_PASSWORD, None, False, auth_message
+            return auth_result(
+                False, auth_result_type.INVALID_PASSWORD, None, False, auth_message
             )
 
         except Exception as e:
-            return AuthResult(
+            return auth_result(
                 False,
-                AuthResultType.DATABASE_ERROR,
+                auth_result_type.DATABASE_ERROR,
                 None,
                 False,
                 f"Authentication pipeline error: {e}",
             )
 
-    def _register_new_user(self, login: str, password: str) -> AuthResult:
+    def _register_new_user(self, login: str, password: str) -> auth_result:
         """
         Register a new user.
 
         Args:
-            login: User login
-            password: User password
+            login: user login
+            password: user password
 
         Returns:
-            AuthResult: Result of registration attempt
+            auth_result: Result of registration attempt
         """
         try:
-            success, message, user = self.user_db.create_user(login, password)
+            success, message, user = self.user_db.create_polyhedron_user(
+                login, password
+            )
 
             if success and user:
                 # Update login info for new user
                 user.update_login_info()
-                self.user_db.update_user_login_info(user)
-                return AuthResult(True, AuthResultType.REGISTRATION_SUCCESS, user, True)
+                self.user_db.update_polyhedron_user_login_info(user)
+                return auth_result(
+                    True, auth_result_type.REGISTRATION_SUCCESS, user, True
+                )
             else:
-                return AuthResult(
+                return auth_result(
                     False,
-                    AuthResultType.REGISTRATION_FAILED,
+                    auth_result_type.REGISTRATION_FAILED,
                     None,
                     False,
                     f"Registration failed: {message}",
                 )
 
         except Exception as e:
-            return AuthResult(
+            return auth_result(
                 False,
-                AuthResultType.DATABASE_ERROR,
+                auth_result_type.DATABASE_ERROR,
                 None,
                 False,
                 f"Registration error: {e}",
@@ -206,16 +217,16 @@ class AuthorizationPipeline:
         Returns:
             bytes: Connection error packet data to send to client
         """
-        from server.packets import ServerPackets
+        from server.packets import server_packets
 
-        return ServerPackets.connection_error(player_index)
+        return server_packets.connection_error(player_index)
 
     def get_user_stats(self) -> dict:
         """Get user statistics."""
         try:
             return {
-                "total_users": self.user_db.get_user_count(),
-                "recent_users": len(self.user_db.get_recent_users(10)),
+                "total_users": self.user_db.get_polyhedron_user_count(),
+                "recent_users": len(self.user_db.get_recent_polyhedron_users(10)),
             }
         except Exception as e:
             return {"error": str(e)}
@@ -226,4 +237,4 @@ class AuthorizationPipeline:
 
 
 # Global authorization pipeline instance
-auth_pipeline = AuthorizationPipeline()
+auth_pipeline = authorization_pipeline()

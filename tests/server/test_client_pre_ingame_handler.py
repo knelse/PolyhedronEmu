@@ -3,9 +3,9 @@ import socket
 import unittest
 import threading
 from unittest.mock import MagicMock, patch
-from server.client_pre_ingame_handler import ClientPreIngameHandler
-from server.logger import ServerLogger
-from server.player_manager import PlayerManager
+from server.client_pre_ingame_handler import client_pre_ingame_handler
+from server.logger import server_logger
+from server.player_manager import player_manager
 
 sys.modules["py4godot"] = MagicMock()
 sys.modules["py4godot.classes"] = MagicMock()
@@ -68,12 +68,12 @@ class MockSocket:
 
 
 class TestClientPreIngameHandler(unittest.TestCase):
-    """Test ClientPreIngameHandler functionality."""
+    """Test client_pre_ingame_handler functionality."""
 
     def setUp(self):
         """Set up test fixtures."""
-        self.mock_logger = MagicMock(spec=ServerLogger)
-        self.mock_player_manager = MagicMock(spec=PlayerManager)
+        self.mock_logger = MagicMock(spec=server_logger)
+        self.mock_player_manager = MagicMock(spec=player_manager)
         self.mock_parent_node = MockNode3D()
 
         # Add missing methods to player manager mock
@@ -82,7 +82,7 @@ class TestClientPreIngameHandler(unittest.TestCase):
         self.mock_player_manager.release_index = MagicMock()
         self.mock_player_manager.release_all_indices = MagicMock()
 
-        self.client_handler = ClientPreIngameHandler(
+        self.client_handler = client_pre_ingame_handler(
             self.mock_logger, self.mock_player_manager, self.mock_parent_node
         )
 
@@ -93,7 +93,7 @@ class TestClientPreIngameHandler(unittest.TestCase):
         self.client_handler.state_manager.transition_state = MagicMock()
 
     def test_initialization(self):
-        """Test ClientPreIngameHandler initialization."""
+        """Test client_pre_ingame_handler initialization."""
         self.assertIsNotNone(self.client_handler.logger)
         self.assertIsNotNone(self.client_handler.player_manager)
         self.assertIsNotNone(self.client_handler.parent_node)
@@ -132,7 +132,7 @@ class TestClientPreIngameHandler(unittest.TestCase):
         self.assertTrue(self.mock_logger.info.called)
 
     @patch(
-        "server.client_pre_ingame_handler.ServerCredentialsHandler.send_init_and_credentials"
+        "server.client_pre_ingame_handler.server_credentials_handler.send_init_and_credentials"
     )
     def test_handle_new_client_no_available_slots(self, mock_send_creds):
         """Test handling new client when no player slots available."""
@@ -162,12 +162,12 @@ class TestClientPreIngameHandler(unittest.TestCase):
         mock_send_creds.assert_not_called()
 
     @patch(
-        "server.client_pre_ingame_handler.ServerCredentialsHandler.send_init_and_credentials"
+        "server.client_pre_ingame_handler.server_credentials_handler.send_init_and_credentials"
     )
     def test_handle_new_client_credentials_failure(self, mock_send_creds):
         """Test handling new client when credentials sending fails."""
         from server.enter_game_world_pipeline.exceptions import (
-            ServerCredentialsException,
+            server_credentials_exception,
         )
 
         mock_client_socket = MockSocket()
@@ -178,7 +178,7 @@ class TestClientPreIngameHandler(unittest.TestCase):
         self.mock_player_manager.get_next_player_index.return_value = player_index
 
         # Mock credentials failure
-        mock_send_creds.side_effect = ServerCredentialsException(
+        mock_send_creds.side_effect = server_credentials_exception(
             "Failed to send credentials"
         )
 

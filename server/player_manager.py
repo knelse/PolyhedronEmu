@@ -2,7 +2,7 @@ import threading
 from typing import Optional
 
 
-class PlayerManager:
+class player_manager:
     INITIAL_PLAYER_INDEX = 0x4F6F
     MAX_PLAYER_INDEX = 0xFFFF
 

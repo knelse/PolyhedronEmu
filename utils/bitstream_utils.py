@@ -1,4 +1,4 @@
-class SimpleBitStream:
+class simple_bit_stream:
     """
     A simple bitstream implementation for reading and writing bits, integers, and bytes.
     """
@@ -151,7 +151,7 @@ class SimpleBitStream:
 def read_stream_bytes_range(stream, start_byte: int, end_byte: int) -> bytes:
     """
     Read bytes from a stream from position start_byte to end_byte.
-    Compatible with both SimpleBitStream and external BitStream.
+    Compatible with both simple_bit_stream and external BitStream.
 
     Args:
         stream: The bitstream to read from
@@ -180,7 +180,7 @@ def read_stream_bytes_range(stream, start_byte: int, end_byte: int) -> bytes:
 def read_stream_bytes_to_end(stream) -> bytes:
     """
     Read all remaining bytes from the current position to the end of the stream.
-    Compatible with both SimpleBitStream and external BitStream.
+    Compatible with both simple_bit_stream and external BitStream.
 
     Args:
         stream: The bitstream to read from

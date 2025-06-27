@@ -33,10 +33,10 @@ sys.modules["py4godot.classes.Node3D"] = mock_node3d_module
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 # Import after mocking py4godot dependencies  # noqa: E402
-from server.player.player_ingame_handler import PlayerIngameHandler  # noqa: E402
-from server.logger import ServerLogger  # noqa: E402
-from server.player_manager import PlayerManager  # noqa: E402
-from server.client_state_manager import ClientStateManager  # noqa: E402
+from server.player.player_ingame_handler import player_ingame_handler  # noqa: E402
+from server.logger import server_logger  # noqa: E402
+from server.player_manager import player_manager  # noqa: E402
+from server.client_state_manager import client_state_manager  # noqa: E402
 
 
 class MockSocket:
@@ -70,16 +70,16 @@ class MockSocket:
 
 
 class TestPlayerIngameHandler(unittest.TestCase):
-    """Test cases for PlayerIngameHandler class."""
+    """Test cases for player_ingame_handler class."""
 
     def setUp(self):
         """Set up test fixtures."""
-        self.handler = PlayerIngameHandler()
+        self.handler = player_ingame_handler()
         # Set up children dict for get_node functionality
         self.handler.children = {}
-        self.mock_logger = MagicMock(spec=ServerLogger)
-        self.mock_player_manager = MagicMock(spec=PlayerManager)
-        self.mock_state_manager = MagicMock(spec=ClientStateManager)
+        self.mock_logger = MagicMock(spec=server_logger)
+        self.mock_player_manager = MagicMock(spec=player_manager)
+        self.mock_state_manager = MagicMock(spec=client_state_manager)
         self.mock_socket = MockSocket()
         self.player_index = 0x5000
         self.user_id = "testuser"
@@ -91,7 +91,7 @@ class TestPlayerIngameHandler(unittest.TestCase):
         self.mock_is_running = mock_is_running
 
     def test_initialization(self):
-        """Test PlayerIngameHandler initialization."""
+        """Test player_ingame_handler initialization."""
         self.assertIsNotNone(self.handler)
         self.assertIsNone(self.handler.client_socket)
         self.assertIsNone(self.handler.player_index)
@@ -137,7 +137,7 @@ class TestPlayerIngameHandler(unittest.TestCase):
         # Create a mock character sheet
         mock_character_sheet = Mock()
         mock_character_sheet.set_character_data = Mock()
-        self.handler.children["CharacterSheet"] = mock_character_sheet
+        self.handler.children["character_sheet"] = mock_character_sheet
 
         # Mock the get_character_data method on the state manager
         mock_character_data = Mock()
@@ -224,7 +224,7 @@ class TestPlayerIngameHandler(unittest.TestCase):
         self.assertFalse(result)
         self.mock_logger.log_exception.assert_called()
 
-    @patch("server.utils.socket_utils.ServerSocketUtils.receive_packet_with_logging")
+    @patch("server.utils.socket_utils.server_socket_utils.receive_packet_with_logging")
     def test_handle_ingame_communication_success(self, mock_receive):
         """Test successful ingame communication handling."""
         # Assign fields directly

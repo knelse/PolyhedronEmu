@@ -1,6 +1,6 @@
 import time
 from datetime import datetime, timedelta, timezone
-from utils.bitstream_utils import SimpleBitStream
+from utils.bitstream_utils import simple_bit_stream
 
 
 def get_ingame_time():
@@ -38,7 +38,7 @@ def encode_ingame_time() -> bytes:
     months = ingame_time.month
     years = ingame_time.year
 
-    stream = SimpleBitStream()
+    stream = simple_bit_stream()
     stream.write_int(seconds, 4)
     stream.write_int(minutes, 6)
     stream.write_int(hours, 5)

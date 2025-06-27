@@ -7,7 +7,7 @@ import os
 from typing import Dict, Any
 
 
-class AuthConfig:
+class auth_config:
     """Configuration class for authentication settings."""
 
     def __init__(self, config_path: str = "auth_config.json"):
@@ -87,4 +87,4 @@ class AuthConfig:
 
 
 # Global instance
-auth_config = AuthConfig()
+default_auth_config = auth_config()

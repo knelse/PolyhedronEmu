@@ -6,7 +6,7 @@ from enum import IntEnum
 from typing import Dict
 
 
-class GameObjectKind(IntEnum):
+class game_object_kind(IntEnum):
     """Game object kind enumeration."""
 
     ALCHEMY = 0
@@ -38,7 +38,7 @@ class GameObjectKind(IntEnum):
     FISTS = 26
 
 
-class GameObjectType(IntEnum):
+class game_object_type(IntEnum):
     """Game object type enumeration."""
 
     PREF_AXE_SWORD = 0
@@ -152,7 +152,7 @@ class GameObjectType(IntEnum):
     FISTS = 108
 
 
-class ItemSuffix(IntEnum):
+class item_suffix(IntEnum):
     """Item suffix enumeration."""
 
     NONE = 0
@@ -356,7 +356,7 @@ class ItemSuffix(IntEnum):
     WHIRL = 95
 
 
-class KarmaTypes(IntEnum):
+class karma_types(IntEnum):
     """Character karma types enumeration."""
 
     VERY_BAD = 0x1
@@ -366,8 +366,8 @@ class KarmaTypes(IntEnum):
     BENIGN = 0x5
 
 
-class Locale(IntEnum):
-    """Locale enumeration."""
+class locale(IntEnum):
+    """locale enumeration."""
 
     RUSSIAN = 0
     ENGLISH = 1
@@ -375,24 +375,10 @@ class Locale(IntEnum):
     PORTUGUESE = 3
 
 
-class Guild(IntEnum):
+class guild(IntEnum):
     """Character guild enumeration."""
 
     NONE = 0
-    Assasin = (0x1,)
-    Crusader = (0x2,)
-    Inquisitor = (0x3,)
-    Hunter = (0x4,)
-    Archmage = (0x5,)
-    Barbarian = (0x6,)
-    Druid = (0x7,)
-    Thief = (0x8,)
-    MasterOfSteel = (0x9,)
-    Armorer = (0xA,)
-    Blacksmith = (0xB,)
-    Warlock = (0xC,)
-    Necromancer = (0xD,)
-    Bandier = (0xE,)
     ASSASIN = 1
     CRUSADER = 2
     INQUISITOR = 3
@@ -409,7 +395,7 @@ class Guild(IntEnum):
     BANDIER = 14
 
 
-class ClanRank(IntEnum):
+class clan_rank(IntEnum):
     """Character clan rank enumeration."""
 
     SENIOR = 0x0
@@ -423,7 +409,7 @@ class ClanRank(IntEnum):
     ACCEPTED = 0x6
 
 
-class BelongingSlot(IntEnum):
+class belonging_slot(IntEnum):
     """Equipment slot enumeration."""
 
     HELMET = 0
@@ -475,7 +461,7 @@ class BelongingSlot(IntEnum):
     UNKNOWN = -1
 
 
-class ChatType(IntEnum):
+class chat_type(IntEnum):
     """Chat type enumeration combining private and public chat types."""
 
     # Public chat types
@@ -498,7 +484,7 @@ class ChatType(IntEnum):
         return self.value in {1, 2, 3, 5, 999}
 
 
-class MonsterType(IntEnum):
+class monster_type(IntEnum):
     """Monster type enumeration."""
 
     ПАЛОЧНИК = 0
@@ -723,7 +709,7 @@ class MonsterType(IntEnum):
     ДУХ_ЗАМКА_ИЛЬ_СУИЛЬИ_РУА = 219
 
 
-class MainhandSlotState(IntEnum):
+class mainhand_slot_state(IntEnum):
     """Mainhand slot state enumeration."""
 
     FULL = 0
@@ -731,7 +717,7 @@ class MainhandSlotState(IntEnum):
     EMPTY = 255
 
 
-class Stat(IntEnum):
+class stat(IntEnum):
     """Character stat enumeration."""
 
     HP_CURRENT = 0
@@ -765,7 +751,7 @@ class Stat(IntEnum):
     IS_INVISIBLE = 28
 
 
-class Clan:
+class clan:
     """Character clan class."""
 
     def __init__(self, name: str = "Default", clan_id: int = 0):
@@ -774,235 +760,235 @@ class Clan:
 
 
 # Create default clan instance as a module-level constant
-DEFAULT_CLAN = Clan("Default", 0)
+DEFAULT_CLAN = clan("Default", 0)
 
 
 # Monster type mappings
-MONSTER_NAME_TO_TYPE_MAPPING: Dict[MonsterType, int] = {
-    MonsterType.ПАЛОЧНИК: 1000,
-    MonsterType.ПАЛОЧНИК_СТЕПНОЙ: 1001,
-    MonsterType.ПАЛОЧНИК_ЛЕСНОЙ: 1002,
-    MonsterType.ПАЛОЧНИК_ПЕЩЕРНЫЙ: 1003,
-    MonsterType.ПСОГЛАВЕЦ: 1010,
-    MonsterType.ПСОГЛАВЕЦ_СТЕПНОЙ: 1011,
-    MonsterType.ПСОГЛАВЕЦ_ЛЕСНОЙ: 1012,
-    MonsterType.ПСОГЛАВЕЦ_ПЕЩЕРНЫЙ: 1013,
-    MonsterType.ТРУХЛЯВЫЙ_РЫЦАРЬ: 1020,
-    MonsterType.РЖАВЫЙ_РЫЦАРЬ: 1021,
-    MonsterType.НЕПРИКАЯННЫЙ_РЫЦАРЬ: 1022,
-    MonsterType.ЗОЛОТОЙ_РЫЦАРЬ: 1023,
-    MonsterType.ГИГАНТСКИЙ_РЫЦАРЬ: 1024,
-    MonsterType.ВОЗДУШНЫЙ_РЫЦАРЬ: 1025,
-    MonsterType.ЛЕТУН: 1030,
-    MonsterType.ШТОРМОВОЙ_ЛЕТУН: 1031,
-    MonsterType.ОГНЕННЫЙ_ЛЕТУН: 1032,
-    MonsterType.ЯНТАРНЫЙ_ЛЕТУН: 1033,
-    MonsterType.ГИГАНТСКИЙ_ЛЕТУН: 1034,
-    MonsterType.ЗЕМЛЯНОЙ_ГОЛЕМ: 1040,
-    MonsterType.ПЕСОЧНЫЙ_ГОЛЕМ: 1041,
-    MonsterType.ГЛИНЯНЫЙ_ГОЛЕМ: 1042,
-    MonsterType.СВОБОДНЫЙ_ГОЛЕМ: 1043,
-    MonsterType.ГИГАНТСКИЙ_ГОЛЕМ: 1044,
-    MonsterType.БАНГВИЛЬСКАЯ_СКОЛОПЕНДРА: 1050,
-    MonsterType.ЦАРСКАЯ_СКОЛОПЕНДРА: 1051,
-    MonsterType.СКЕЛЕТ: 1060,
-    MonsterType.СКЕЛЕТ_ЛЕСНОЙ: 1061,
-    MonsterType.СКЕЛЕТ_УМРАДСКИЙ: 1062,
-    MonsterType.СКЕЛЕТ_ВОЗДУШНЫЙ: 1063,
-    MonsterType.СКЕЛЕТ_ПЕЩЕРНЫЙ: 1064,
-    MonsterType.ЛИЧ: 1065,
-    MonsterType.ГИГАНТСКИЙ_СКЕЛЕТ: 1066,
-    MonsterType.ВОЗДУШНЫЙ_ЛИЧ: 1067,
-    MonsterType.АССАСИН2: 1069,
-    MonsterType.ВЕПРЬ: 1070,
-    MonsterType.БЕШЕНЫЙ_ВЕПРЬ: 1071,
-    MonsterType.СУХОЙ_ВЕПРЬ: 1072,
-    MonsterType.ВОЗДУШНЫЙ_ВЕПРЬ: 1073,
-    MonsterType.ЖЕЛЕЗНЫЙ_ВЕПРЬ: 1074,
-    MonsterType.ОГНЕННЫЙ_ВЕПРЬ: 1075,
-    MonsterType.ГИГАНТСКИЙ_ВЕПРЬ: 1076,
-    MonsterType.ЦИАНОС: 1080,
-    MonsterType.ЦИАНОС_ТЁМНЫЙ: 1081,
-    MonsterType.ЦИАНОС_СУХОЙ: 1082,
-    MonsterType.ЦИАНОС_ЖЕЛЕЗНЫЙ: 1083,
-    MonsterType.ЦИАНОС_ВОЗДУШНЫЙ: 1084,
-    MonsterType.ЦИАНОС_ГИГАНТСКИЙ: 1085,
-    MonsterType.ВОЛК: 1090,
-    MonsterType.СТЕПНОЙ_ВОЛК: 1091,
-    MonsterType.ЛЕДЯНОЙ_ВОЛК: 1092,
-    MonsterType.СУХОЙ_ВОЛК: 1093,
-    MonsterType.ЖЕЛЕЗНЫЙ_ВОЛК: 1094,
-    MonsterType.АДСКИЙ_ВОЛК: 1095,
-    MonsterType.ПАУК: 1100,
-    MonsterType.СЕРНЫЙ_ПАУК: 1101,
-    MonsterType.СУХОЙ_ПАУК: 1102,
-    MonsterType.ЖЕЛЕЗНЫЙ_ПАУК: 1103,
-    MonsterType.ОГНЕННЫЙ_ПАУК: 1104,
-    MonsterType.ЧЁРНАЯ_ВДОВА: 1105,
-    MonsterType.ГИГАНТСКИЙ_ПАУК: 1106,
-    MonsterType.ВОЗДУШНЫЙ_ПАУК: 1107,
-    MonsterType.САЛАМАНДРА: 1110,
-    MonsterType.НОМРАДСКАЯ_САЛАМАНДРА: 1111,
-    MonsterType.ЗЕМЛЯНАЯ_САЛАМАНДРА: 1112,
-    MonsterType.ЖЕЛЕЗНАЯ_САЛАМАНДРА: 1113,
-    MonsterType.САЛАМАНДИГА: 1114,
-    MonsterType.КРАСНЫЙ_СКОРПИОН: 1120,
-    MonsterType.СКОРПИОН: 1121,
-    MonsterType.СИНИЙ_СКОРПИОН: 1122,
-    MonsterType.ОГНЕННЫЙ_СКОРПИОН: 1123,
-    MonsterType.ТИФОН: 1130,
-    MonsterType.ДЫМНЫЙ_ТИФОН: 1131,
-    MonsterType.ВИЗЖАЩИЙ_ТИФОН: 1132,
-    MonsterType.ЖЕЛЕЗНЫЙ_ТИФОН: 1133,
-    MonsterType.ОГНЕННЫЙ_ТИФОН: 1134,
-    MonsterType.ГИГАНТСКИЙ_ТИФОН: 1135,
-    MonsterType.ЛЮДОЕД: 1140,
-    MonsterType.СЕРНЫЙ_ЛЮДОЕД: 1141,
-    MonsterType.ПЕЩЕРНЫЙ_ЛЮДОЕД: 1142,
-    MonsterType.ГИГАНТСКИЙ_ЛЮДОЕД: 1143,
-    MonsterType.НИФОН: 1150,
-    MonsterType.ЗЕЛЁНЫЙ_ДРАКОН: 1160,
-    MonsterType.СИНИЙ_ДРАКОН: 1161,
-    MonsterType.КРАСНЫЙ_ДРАКОН: 1162,
-    MonsterType.СТАЛЬНОЙ_ДРАКОН: 1163,
-    MonsterType.ГИГАНТСКИЙ_ДРАКОН: 1164,
-    MonsterType.КОШКА: 1170,
-    MonsterType.БЫК: 1180,
-    MonsterType.ТРОПОС: 1190,
-    MonsterType.БЕШЕНЫЙ_ТРОПОС: 1191,
-    MonsterType.ТОРФЯНОЙ_ТРОПОС: 1192,
-    MonsterType.КОРОЛЕВСКИЙ_ТРОПОС: 1193,
-    MonsterType.ВОЗДУШНЫЙ_ТРОПОС: 1194,
-    MonsterType.МАМОНТ: 1200,
-    MonsterType.ЖЕЛЕЗНЫЙ_МАМОНТ: 1201,
-    MonsterType.СНЕЖНЫЙ_МАМОНТ: 1202,
-    MonsterType.УГОЛЬНЫЙ_МАМОНТ: 1203,
-    MonsterType.ЗОМБИ: 1210,
-    MonsterType.СЕРЫЙ_ЗОМБИ: 1211,
-    MonsterType.ЗОМБАДЕР: 1212,
-    MonsterType.ГИГАНТСКИЙ_ЗОМБИ: 1213,
-    MonsterType.ЗАЧАРОВАННОЕ_ДЕРЕВО: 1220,
-    MonsterType.КРАСНОЕ_ДЕРЕВО: 1221,
-    MonsterType.МЁРТВОЕ_ДЕРЕВО: 1222,
-    MonsterType.ГРАНИТНЫЙ_КАМНЕЕД: 1230,
-    MonsterType.ИЗУМРУДНЫЙ_КАМНЕЕД: 1231,
-    MonsterType.САПФИРОВЫЙ_КАМНЕЕД: 1232,
-    MonsterType.ХОЗЯИН_СКАЛ: 1233,
-    MonsterType.ХОДЯЧИЙ_ТРУП: 1240,
-    MonsterType.КАДАВР: 1241,
-    MonsterType.КАДАВР_ПАУК: 1242,
-    MonsterType.КОСТЯНОЙ_КАДАВР: 1243,
-    MonsterType.ГИГАНТСКИЙ_КАДАВР: 1244,
-    MonsterType.НЕТОПЫРЬ: 1250,
-    MonsterType.СЕРЫЙ_НЕТОПЫРЬ: 1251,
-    MonsterType.ОГНЕННЫЙ_НЕТОПЫРЬ: 1252,
-    MonsterType.ГИГАНТСКИЙ_НЕТОПЫРЬ: 1253,
-    MonsterType.ЛЕСНАЯ_МЕНАДА: 1260,
-    MonsterType.СТЕПНАЯ_МЕНАДА: 1261,
-    MonsterType.ПЕЩЕРНАЯ_МЕНАДА: 1262,
-    MonsterType.МАГИЧЕСКАЯ_МЕНАДА: 1263,
-    MonsterType.ВОЗДУШНАЯ_МЕНАДА: 1264,
-    MonsterType.КАРЛИК: 1270,
-    MonsterType.ЛЕСНОЙ_КАРЛИК: 1271,
-    MonsterType.КРАТЕРНЫЙ_КАРЛИК: 1272,
-    MonsterType.ВОЗДУШНЫЙ_КАРЛИК: 1273,
-    MonsterType.ЗАМКОВЫЙ_КАМЕНЬ: 1280,
-    MonsterType.ЗАЩИТНЫЙ_КАМЕНЬ: 1281,
-    MonsterType.АССАСИН: 1290,
-    MonsterType.СВОБОДНЫЙ_АССАСИН: 1291,
-    MonsterType.ПРИЗРАЧНЫЙ_АССАСИН: 1292,
-    MonsterType.ДРАКОСТ: 1300,
-    MonsterType.ЗОЛОТОЙ_ДРАКОСТ: 1301,
-    MonsterType.ЛЕДЯНОЙ_ДРАКОСТ: 1302,
-    MonsterType.ГЛОТ: 1310,
-    MonsterType.БОЛОТНЫЙ_ГЛОТ: 1311,
-    MonsterType.ВЕСТНИК_СМЕРТИ: 1320,
-    MonsterType.КУРГАННИК: 1330,
-    MonsterType.РАЗБОЙНИК: 1340,
-    MonsterType.ДУХ_БАШНИ: 1350,
-    MonsterType.ЧЁРНЫЙ_ДРАКОН: 1360,
-    MonsterType.БЕЛЫЙ_ДРАКОН: 1361,
-    MonsterType.ЧЁРНЫЙ_ДРАКОН2: 1362,
-    MonsterType.БЕЛЫЙ_ДРАКОН2: 1363,
-    MonsterType.ЧЁРНЫЙ_ДРАКОН3: 1364,
-    MonsterType.БЕЛЫЙ_ДРАКОН3: 1365,
-    MonsterType.ВЕЛИКИЙ_ЧЁРНЫЙ_ДРАКОН: 1366,
-    MonsterType.ВЕЛИКИЙ_БЕЛЫЙ_ДРАКОН: 1367,
-    MonsterType.ЧЁРНЫЙ_РАНЕНЫЙ_ДРАКОН: 1368,
-    MonsterType.ЧЁРНЫЙ_НАЕЗДНИК: 1370,
-    MonsterType.БЕЛАЯ_НАЕЗДНИЦА: 1371,
-    MonsterType.ПЛЫВУНЕЦ: 1380,
-    MonsterType.ОГНЕННЫЙ_ЗМЕЙ: 1400,
-    MonsterType.КОСТЯНОЙ_ЗМЕЙ: 1401,
-    MonsterType.ЖЕЛЕЗНЫЙ_ЗМЕЙ: 1402,
-    MonsterType.ПОДЗЕМНЫЙ_ЧЕРВЯК: 1410,
-    MonsterType.РУСАЛКА: 1420,
-    MonsterType.МЯСНОЙ_ЩУПАЛЬНИК: 1430,
-    MonsterType.ЖЕЛЕЗНЫЙ_ЩУПАЛЬНИК: 1431,
-    MonsterType.КОСТЯНАЯ_СОБАКА: 1440,
-    MonsterType.ХАРОНСКИЙ_ОХОТНИК: 1450,
-    MonsterType.ОГНЕННЫЙ_ОХОТНИК: 1451,
-    MonsterType.ЖЕЛЕЗНЫЙ_ОХОТНИК: 1452,
-    MonsterType.МЁРТВЫЙ_ОХОТНИК: 1453,
-    MonsterType.ОГНЕННАЯ_ОХОТНИЦА: 1460,
-    MonsterType.ЖЕЛЕЗНАЯ_ОХОТНИЦА: 1461,
-    MonsterType.ХАРОНСКАЯ_ОХОТНИЦА: 1462,
-    MonsterType.МЁРТВАЯ_ОХОТНИЦА: 1463,
-    MonsterType.СТРАЖ_БЕЗДНЫ: 1470,
-    MonsterType.ХИМЕРА: 1480,
-    MonsterType.ЛЕТУН_НЕКРОМАНТА: 1850,
-    MonsterType.ДЕМОН_ВОДЫ: 1870,
-    MonsterType.ДЕМОН_ОГНЯ: 1871,
-    MonsterType.ДЕМОН_ВОЗДУХА: 1872,
-    MonsterType.ДЕМОН_ЗЕМЛИ: 1873,
-    MonsterType.ЛЕТАЮЩИЙ_ДЕМОН: 1874,
-    MonsterType.СВЕРХ_ДЕМОН: 1875,
-    MonsterType.БАНГВИЛЬСКАЯ_СКОЛОПЕНДРА2: 1880,
-    MonsterType.ПАЛОЧНИК2: 1881,
-    MonsterType.ТРОПОС2: 1882,
-    MonsterType.РЖАВЫЙ_РЫЦАРЬ2: 1883,
-    MonsterType.ДУХ_ЗАМКА_ЛЬЕЖ: 1900,
-    MonsterType.ДУХ_ЗАМКА_ФЬЕФ: 1901,
-    MonsterType.ДУХ_ЗАМКА_АРИС: 1902,
-    MonsterType.ДУХ_ЗАМКА_ЛАТОР: 1903,
-    MonsterType.ДУХ_ЗАМКА_ЭЙКУМ_КАС: 1904,
-    MonsterType.ДУХ_ЗАМКА_ГЕДЕОН: 1905,
-    MonsterType.ДУХ_ЗАМКА_ШАТЕЛЬЕ: 1906,
-    MonsterType.ДУХ_ЗАМКА_ТУАНОД: 1907,
-    MonsterType.ДУХ_ЗАМКА_ПЕЛЬТЬЕ: 1908,
-    MonsterType.ДУХ_ЗАМКА_КАРЕ_РОЯЛЬ: 1909,
-    MonsterType.ДУХ_ЗАМКА_БЛЕССЕНДОР: 1910,
-    MonsterType.ДУХ_ЗАМКА_ТЕРНОВАЛЬ: 1911,
-    MonsterType.ДУХ_ЗАМКА_АММАЛАЭЛЬ: 1912,
-    MonsterType.ДУХ_ЗАМКА_КАБЛАК: 1913,
-    MonsterType.ДУХ_ЗАМКА_ДЭВАНАГАРИ: 1914,
-    MonsterType.ДУХ_ЗАМКА_САБУЛАТ: 1915,
-    MonsterType.ДУХ_ЗАМКА_ДЕФФЕНСАТ: 1916,
-    MonsterType.ДУХ_ЗАМКА_АЙОНАТ: 1917,
-    MonsterType.ДУХ_ЗАМКА_ТРИУМФАЛЕР: 1918,
-    MonsterType.ДУХ_ЗАМКА_ХАНГААР: 1919,
-    MonsterType.ДУХ_ЗАМКА_ДАБРАД: 1920,
-    MonsterType.ДУХ_ЗАМКА_СЕД: 1921,
-    MonsterType.ДУХ_ЗАМКА_ЛЕНДЕР: 1922,
-    MonsterType.ДУХ_ЗАМКА_КЕЛЛОС: 1923,
-    MonsterType.ДУХ_ЗАМКА_ШИБРОН: 1924,
-    MonsterType.ДУХ_ЗАМКА_НИМЕД: 1925,
-    MonsterType.ДУХ_ЗАМКА_КАНАКУН: 1926,
-    MonsterType.ДУХ_ЗАМКА_ЭЛДУК: 1927,
-    MonsterType.ДУХ_ЗАМКА_ЯНГ: 1928,
-    MonsterType.ДУХ_ЗАМКА_ЭЛЕК: 1929,
-    MonsterType.ДУХ_ЗАМКА_ГАВОТ: 1930,
-    MonsterType.ДУХ_ЗАМКА_КАНДУР: 1931,
-    MonsterType.ДУХ_ЗАМКА_ИММЕРТЕЛЬ: 1932,
-    MonsterType.ДУХ_ЗАМКА_НАРЦИСС: 1933,
-    MonsterType.ДУХ_ЗАМКА_РАНДЕН: 1934,
-    MonsterType.ДУХ_ЗАМКА_НИРГУН: 1935,
-    MonsterType.ДУХ_ЗАМКА_ГЕЛГИВИНН: 1936,
-    MonsterType.ДУХ_ЗАМКА_ИЛЬ_СУИЛЬИ_РУА: 1937,
+MONSTER_NAME_TO_TYPE_MAPPING: Dict[monster_type, int] = {
+    monster_type.ПАЛОЧНИК: 1000,
+    monster_type.ПАЛОЧНИК_СТЕПНОЙ: 1001,
+    monster_type.ПАЛОЧНИК_ЛЕСНОЙ: 1002,
+    monster_type.ПАЛОЧНИК_ПЕЩЕРНЫЙ: 1003,
+    monster_type.ПСОГЛАВЕЦ: 1010,
+    monster_type.ПСОГЛАВЕЦ_СТЕПНОЙ: 1011,
+    monster_type.ПСОГЛАВЕЦ_ЛЕСНОЙ: 1012,
+    monster_type.ПСОГЛАВЕЦ_ПЕЩЕРНЫЙ: 1013,
+    monster_type.ТРУХЛЯВЫЙ_РЫЦАРЬ: 1020,
+    monster_type.РЖАВЫЙ_РЫЦАРЬ: 1021,
+    monster_type.НЕПРИКАЯННЫЙ_РЫЦАРЬ: 1022,
+    monster_type.ЗОЛОТОЙ_РЫЦАРЬ: 1023,
+    monster_type.ГИГАНТСКИЙ_РЫЦАРЬ: 1024,
+    monster_type.ВОЗДУШНЫЙ_РЫЦАРЬ: 1025,
+    monster_type.ЛЕТУН: 1030,
+    monster_type.ШТОРМОВОЙ_ЛЕТУН: 1031,
+    monster_type.ОГНЕННЫЙ_ЛЕТУН: 1032,
+    monster_type.ЯНТАРНЫЙ_ЛЕТУН: 1033,
+    monster_type.ГИГАНТСКИЙ_ЛЕТУН: 1034,
+    monster_type.ЗЕМЛЯНОЙ_ГОЛЕМ: 1040,
+    monster_type.ПЕСОЧНЫЙ_ГОЛЕМ: 1041,
+    monster_type.ГЛИНЯНЫЙ_ГОЛЕМ: 1042,
+    monster_type.СВОБОДНЫЙ_ГОЛЕМ: 1043,
+    monster_type.ГИГАНТСКИЙ_ГОЛЕМ: 1044,
+    monster_type.БАНГВИЛЬСКАЯ_СКОЛОПЕНДРА: 1050,
+    monster_type.ЦАРСКАЯ_СКОЛОПЕНДРА: 1051,
+    monster_type.СКЕЛЕТ: 1060,
+    monster_type.СКЕЛЕТ_ЛЕСНОЙ: 1061,
+    monster_type.СКЕЛЕТ_УМРАДСКИЙ: 1062,
+    monster_type.СКЕЛЕТ_ВОЗДУШНЫЙ: 1063,
+    monster_type.СКЕЛЕТ_ПЕЩЕРНЫЙ: 1064,
+    monster_type.ЛИЧ: 1065,
+    monster_type.ГИГАНТСКИЙ_СКЕЛЕТ: 1066,
+    monster_type.ВОЗДУШНЫЙ_ЛИЧ: 1067,
+    monster_type.АССАСИН2: 1069,
+    monster_type.ВЕПРЬ: 1070,
+    monster_type.БЕШЕНЫЙ_ВЕПРЬ: 1071,
+    monster_type.СУХОЙ_ВЕПРЬ: 1072,
+    monster_type.ВОЗДУШНЫЙ_ВЕПРЬ: 1073,
+    monster_type.ЖЕЛЕЗНЫЙ_ВЕПРЬ: 1074,
+    monster_type.ОГНЕННЫЙ_ВЕПРЬ: 1075,
+    monster_type.ГИГАНТСКИЙ_ВЕПРЬ: 1076,
+    monster_type.ЦИАНОС: 1080,
+    monster_type.ЦИАНОС_ТЁМНЫЙ: 1081,
+    monster_type.ЦИАНОС_СУХОЙ: 1082,
+    monster_type.ЦИАНОС_ЖЕЛЕЗНЫЙ: 1083,
+    monster_type.ЦИАНОС_ВОЗДУШНЫЙ: 1084,
+    monster_type.ЦИАНОС_ГИГАНТСКИЙ: 1085,
+    monster_type.ВОЛК: 1090,
+    monster_type.СТЕПНОЙ_ВОЛК: 1091,
+    monster_type.ЛЕДЯНОЙ_ВОЛК: 1092,
+    monster_type.СУХОЙ_ВОЛК: 1093,
+    monster_type.ЖЕЛЕЗНЫЙ_ВОЛК: 1094,
+    monster_type.АДСКИЙ_ВОЛК: 1095,
+    monster_type.ПАУК: 1100,
+    monster_type.СЕРНЫЙ_ПАУК: 1101,
+    monster_type.СУХОЙ_ПАУК: 1102,
+    monster_type.ЖЕЛЕЗНЫЙ_ПАУК: 1103,
+    monster_type.ОГНЕННЫЙ_ПАУК: 1104,
+    monster_type.ЧЁРНАЯ_ВДОВА: 1105,
+    monster_type.ГИГАНТСКИЙ_ПАУК: 1106,
+    monster_type.ВОЗДУШНЫЙ_ПАУК: 1107,
+    monster_type.САЛАМАНДРА: 1110,
+    monster_type.НОМРАДСКАЯ_САЛАМАНДРА: 1111,
+    monster_type.ЗЕМЛЯНАЯ_САЛАМАНДРА: 1112,
+    monster_type.ЖЕЛЕЗНАЯ_САЛАМАНДРА: 1113,
+    monster_type.САЛАМАНДИГА: 1114,
+    monster_type.КРАСНЫЙ_СКОРПИОН: 1120,
+    monster_type.СКОРПИОН: 1121,
+    monster_type.СИНИЙ_СКОРПИОН: 1122,
+    monster_type.ОГНЕННЫЙ_СКОРПИОН: 1123,
+    monster_type.ТИФОН: 1130,
+    monster_type.ДЫМНЫЙ_ТИФОН: 1131,
+    monster_type.ВИЗЖАЩИЙ_ТИФОН: 1132,
+    monster_type.ЖЕЛЕЗНЫЙ_ТИФОН: 1133,
+    monster_type.ОГНЕННЫЙ_ТИФОН: 1134,
+    monster_type.ГИГАНТСКИЙ_ТИФОН: 1135,
+    monster_type.ЛЮДОЕД: 1140,
+    monster_type.СЕРНЫЙ_ЛЮДОЕД: 1141,
+    monster_type.ПЕЩЕРНЫЙ_ЛЮДОЕД: 1142,
+    monster_type.ГИГАНТСКИЙ_ЛЮДОЕД: 1143,
+    monster_type.НИФОН: 1150,
+    monster_type.ЗЕЛЁНЫЙ_ДРАКОН: 1160,
+    monster_type.СИНИЙ_ДРАКОН: 1161,
+    monster_type.КРАСНЫЙ_ДРАКОН: 1162,
+    monster_type.СТАЛЬНОЙ_ДРАКОН: 1163,
+    monster_type.ГИГАНТСКИЙ_ДРАКОН: 1164,
+    monster_type.КОШКА: 1170,
+    monster_type.БЫК: 1180,
+    monster_type.ТРОПОС: 1190,
+    monster_type.БЕШЕНЫЙ_ТРОПОС: 1191,
+    monster_type.ТОРФЯНОЙ_ТРОПОС: 1192,
+    monster_type.КОРОЛЕВСКИЙ_ТРОПОС: 1193,
+    monster_type.ВОЗДУШНЫЙ_ТРОПОС: 1194,
+    monster_type.МАМОНТ: 1200,
+    monster_type.ЖЕЛЕЗНЫЙ_МАМОНТ: 1201,
+    monster_type.СНЕЖНЫЙ_МАМОНТ: 1202,
+    monster_type.УГОЛЬНЫЙ_МАМОНТ: 1203,
+    monster_type.ЗОМБИ: 1210,
+    monster_type.СЕРЫЙ_ЗОМБИ: 1211,
+    monster_type.ЗОМБАДЕР: 1212,
+    monster_type.ГИГАНТСКИЙ_ЗОМБИ: 1213,
+    monster_type.ЗАЧАРОВАННОЕ_ДЕРЕВО: 1220,
+    monster_type.КРАСНОЕ_ДЕРЕВО: 1221,
+    monster_type.МЁРТВОЕ_ДЕРЕВО: 1222,
+    monster_type.ГРАНИТНЫЙ_КАМНЕЕД: 1230,
+    monster_type.ИЗУМРУДНЫЙ_КАМНЕЕД: 1231,
+    monster_type.САПФИРОВЫЙ_КАМНЕЕД: 1232,
+    monster_type.ХОЗЯИН_СКАЛ: 1233,
+    monster_type.ХОДЯЧИЙ_ТРУП: 1240,
+    monster_type.КАДАВР: 1241,
+    monster_type.КАДАВР_ПАУК: 1242,
+    monster_type.КОСТЯНОЙ_КАДАВР: 1243,
+    monster_type.ГИГАНТСКИЙ_КАДАВР: 1244,
+    monster_type.НЕТОПЫРЬ: 1250,
+    monster_type.СЕРЫЙ_НЕТОПЫРЬ: 1251,
+    monster_type.ОГНЕННЫЙ_НЕТОПЫРЬ: 1252,
+    monster_type.ГИГАНТСКИЙ_НЕТОПЫРЬ: 1253,
+    monster_type.ЛЕСНАЯ_МЕНАДА: 1260,
+    monster_type.СТЕПНАЯ_МЕНАДА: 1261,
+    monster_type.ПЕЩЕРНАЯ_МЕНАДА: 1262,
+    monster_type.МАГИЧЕСКАЯ_МЕНАДА: 1263,
+    monster_type.ВОЗДУШНАЯ_МЕНАДА: 1264,
+    monster_type.КАРЛИК: 1270,
+    monster_type.ЛЕСНОЙ_КАРЛИК: 1271,
+    monster_type.КРАТЕРНЫЙ_КАРЛИК: 1272,
+    monster_type.ВОЗДУШНЫЙ_КАРЛИК: 1273,
+    monster_type.ЗАМКОВЫЙ_КАМЕНЬ: 1280,
+    monster_type.ЗАЩИТНЫЙ_КАМЕНЬ: 1281,
+    monster_type.АССАСИН: 1290,
+    monster_type.СВОБОДНЫЙ_АССАСИН: 1291,
+    monster_type.ПРИЗРАЧНЫЙ_АССАСИН: 1292,
+    monster_type.ДРАКОСТ: 1300,
+    monster_type.ЗОЛОТОЙ_ДРАКОСТ: 1301,
+    monster_type.ЛЕДЯНОЙ_ДРАКОСТ: 1302,
+    monster_type.ГЛОТ: 1310,
+    monster_type.БОЛОТНЫЙ_ГЛОТ: 1311,
+    monster_type.ВЕСТНИК_СМЕРТИ: 1320,
+    monster_type.КУРГАННИК: 1330,
+    monster_type.РАЗБОЙНИК: 1340,
+    monster_type.ДУХ_БАШНИ: 1350,
+    monster_type.ЧЁРНЫЙ_ДРАКОН: 1360,
+    monster_type.БЕЛЫЙ_ДРАКОН: 1361,
+    monster_type.ЧЁРНЫЙ_ДРАКОН2: 1362,
+    monster_type.БЕЛЫЙ_ДРАКОН2: 1363,
+    monster_type.ЧЁРНЫЙ_ДРАКОН3: 1364,
+    monster_type.БЕЛЫЙ_ДРАКОН3: 1365,
+    monster_type.ВЕЛИКИЙ_ЧЁРНЫЙ_ДРАКОН: 1366,
+    monster_type.ВЕЛИКИЙ_БЕЛЫЙ_ДРАКОН: 1367,
+    monster_type.ЧЁРНЫЙ_РАНЕНЫЙ_ДРАКОН: 1368,
+    monster_type.ЧЁРНЫЙ_НАЕЗДНИК: 1370,
+    monster_type.БЕЛАЯ_НАЕЗДНИЦА: 1371,
+    monster_type.ПЛЫВУНЕЦ: 1380,
+    monster_type.ОГНЕННЫЙ_ЗМЕЙ: 1400,
+    monster_type.КОСТЯНОЙ_ЗМЕЙ: 1401,
+    monster_type.ЖЕЛЕЗНЫЙ_ЗМЕЙ: 1402,
+    monster_type.ПОДЗЕМНЫЙ_ЧЕРВЯК: 1410,
+    monster_type.РУСАЛКА: 1420,
+    monster_type.МЯСНОЙ_ЩУПАЛЬНИК: 1430,
+    monster_type.ЖЕЛЕЗНЫЙ_ЩУПАЛЬНИК: 1431,
+    monster_type.КОСТЯНАЯ_СОБАКА: 1440,
+    monster_type.ХАРОНСКИЙ_ОХОТНИК: 1450,
+    monster_type.ОГНЕННЫЙ_ОХОТНИК: 1451,
+    monster_type.ЖЕЛЕЗНЫЙ_ОХОТНИК: 1452,
+    monster_type.МЁРТВЫЙ_ОХОТНИК: 1453,
+    monster_type.ОГНЕННАЯ_ОХОТНИЦА: 1460,
+    monster_type.ЖЕЛЕЗНАЯ_ОХОТНИЦА: 1461,
+    monster_type.ХАРОНСКАЯ_ОХОТНИЦА: 1462,
+    monster_type.МЁРТВАЯ_ОХОТНИЦА: 1463,
+    monster_type.СТРАЖ_БЕЗДНЫ: 1470,
+    monster_type.ХИМЕРА: 1480,
+    monster_type.ЛЕТУН_НЕКРОМАНТА: 1850,
+    monster_type.ДЕМОН_ВОДЫ: 1870,
+    monster_type.ДЕМОН_ОГНЯ: 1871,
+    monster_type.ДЕМОН_ВОЗДУХА: 1872,
+    monster_type.ДЕМОН_ЗЕМЛИ: 1873,
+    monster_type.ЛЕТАЮЩИЙ_ДЕМОН: 1874,
+    monster_type.СВЕРХ_ДЕМОН: 1875,
+    monster_type.БАНГВИЛЬСКАЯ_СКОЛОПЕНДРА2: 1880,
+    monster_type.ПАЛОЧНИК2: 1881,
+    monster_type.ТРОПОС2: 1882,
+    monster_type.РЖАВЫЙ_РЫЦАРЬ2: 1883,
+    monster_type.ДУХ_ЗАМКА_ЛЬЕЖ: 1900,
+    monster_type.ДУХ_ЗАМКА_ФЬЕФ: 1901,
+    monster_type.ДУХ_ЗАМКА_АРИС: 1902,
+    monster_type.ДУХ_ЗАМКА_ЛАТОР: 1903,
+    monster_type.ДУХ_ЗАМКА_ЭЙКУМ_КАС: 1904,
+    monster_type.ДУХ_ЗАМКА_ГЕДЕОН: 1905,
+    monster_type.ДУХ_ЗАМКА_ШАТЕЛЬЕ: 1906,
+    monster_type.ДУХ_ЗАМКА_ТУАНОД: 1907,
+    monster_type.ДУХ_ЗАМКА_ПЕЛЬТЬЕ: 1908,
+    monster_type.ДУХ_ЗАМКА_КАРЕ_РОЯЛЬ: 1909,
+    monster_type.ДУХ_ЗАМКА_БЛЕССЕНДОР: 1910,
+    monster_type.ДУХ_ЗАМКА_ТЕРНОВАЛЬ: 1911,
+    monster_type.ДУХ_ЗАМКА_АММАЛАЭЛЬ: 1912,
+    monster_type.ДУХ_ЗАМКА_КАБЛАК: 1913,
+    monster_type.ДУХ_ЗАМКА_ДЭВАНАГАРИ: 1914,
+    monster_type.ДУХ_ЗАМКА_САБУЛАТ: 1915,
+    monster_type.ДУХ_ЗАМКА_ДЕФФЕНСАТ: 1916,
+    monster_type.ДУХ_ЗАМКА_АЙОНАТ: 1917,
+    monster_type.ДУХ_ЗАМКА_ТРИУМФАЛЕР: 1918,
+    monster_type.ДУХ_ЗАМКА_ХАНГААР: 1919,
+    monster_type.ДУХ_ЗАМКА_ДАБРАД: 1920,
+    monster_type.ДУХ_ЗАМКА_СЕД: 1921,
+    monster_type.ДУХ_ЗАМКА_ЛЕНДЕР: 1922,
+    monster_type.ДУХ_ЗАМКА_КЕЛЛОС: 1923,
+    monster_type.ДУХ_ЗАМКА_ШИБРОН: 1924,
+    monster_type.ДУХ_ЗАМКА_НИМЕД: 1925,
+    monster_type.ДУХ_ЗАМКА_КАНАКУН: 1926,
+    monster_type.ДУХ_ЗАМКА_ЭЛДУК: 1927,
+    monster_type.ДУХ_ЗАМКА_ЯНГ: 1928,
+    monster_type.ДУХ_ЗАМКА_ЭЛЕК: 1929,
+    monster_type.ДУХ_ЗАМКА_ГАВОТ: 1930,
+    monster_type.ДУХ_ЗАМКА_КАНДУР: 1931,
+    monster_type.ДУХ_ЗАМКА_ИММЕРТЕЛЬ: 1932,
+    monster_type.ДУХ_ЗАМКА_НАРЦИСС: 1933,
+    monster_type.ДУХ_ЗАМКА_РАНДЕН: 1934,
+    monster_type.ДУХ_ЗАМКА_НИРГУН: 1935,
+    monster_type.ДУХ_ЗАМКА_ГЕЛГИВИНН: 1936,
+    monster_type.ДУХ_ЗАМКА_ИЛЬ_СУИЛЬИ_РУА: 1937,
 }
 
-# Reverse mapping: int -> MonsterType
-MONSTER_TYPE_TO_NAME_MAPPING: Dict[int, MonsterType] = {
+# Reverse mapping: int -> monster_type
+MONSTER_TYPE_TO_NAME_MAPPING: Dict[int, monster_type] = {
     v: k for k, v in MONSTER_NAME_TO_TYPE_MAPPING.items()
 }
 

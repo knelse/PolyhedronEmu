@@ -25,7 +25,7 @@ except ImportError:
     requests = None
 
 
-class CIMonitor:
+class ci_monitor:
     def __init__(self, repo_path: str = "."):
         self.repo_path = Path(repo_path).resolve()
         self.build_history_dir = self.repo_path / ".build_history"
@@ -778,7 +778,7 @@ def main():
 
     args = parser.parse_args()
 
-    monitor = CIMonitor(args.repo_path)
+    monitor = ci_monitor(args.repo_path)
 
     if args.poll_interval:
         monitor.poll_interval = args.poll_interval

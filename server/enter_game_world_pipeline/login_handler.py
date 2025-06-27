@@ -1,15 +1,15 @@
 import socket
-from server.logger import ServerLogger
-from server.utils.socket_utils import ServerSocketUtils
-from .exceptions import LoginException
+from server.logger import server_logger
+from server.utils.socket_utils import server_socket_utils
+from .exceptions import login_exception
 
 
-class LoginHandler:
+class login_handler:
     """Handles waiting for and processing login packets from clients."""
 
     @staticmethod
     def wait_for_login_packet(
-        client_socket: socket.socket, player_index: int, logger: ServerLogger
+        client_socket: socket.socket, player_index: int, logger: server_logger
     ) -> bytes:
         """
         Wait for client to send a login packet longer than 12 bytes.
@@ -23,11 +23,11 @@ class LoginHandler:
             The received packet data
 
         Raises:
-            LoginException: If login packet reception fails
+            login_exception: If login packet reception fails
         """
         try:
             while True:
-                data = ServerSocketUtils.receive_packet_with_logging(
+                data = server_socket_utils.receive_packet_with_logging(
                     client_socket,
                     player_index,
                     logger,
@@ -36,7 +36,7 @@ class LoginHandler:
                     "login packet wait",
                 )
                 if not data:
-                    raise LoginException(
+                    raise login_exception(
                         f"Failed to receive login packet from player 0x{player_index:04X}"
                     )
 
@@ -49,12 +49,12 @@ class LoginHandler:
                     return data
 
         except socket.timeout:
-            raise LoginException(
+            raise login_exception(
                 f"Timeout waiting for login packet from player 0x{player_index:04X}"
             )
-        except LoginException:
+        except login_exception:
             raise
         except Exception as e:
-            raise LoginException(
+            raise login_exception(
                 f"Error waiting for login packet from player 0x{player_index:04X}: {str(e)}"
             )

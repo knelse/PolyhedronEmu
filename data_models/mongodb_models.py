@@ -7,19 +7,20 @@ from datetime import datetime, timezone
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
+import logging
 from .enums import (
-    Guild,
-    ClanRank,
-    KarmaTypes,
-    BelongingSlot,
-    Clan,
+    guild,
+    clan_rank,
+    karma_types,
+    belonging_slot,
+    clan,
     DEFAULT_CLAN,
 )
-from .client_character import ClientCharacter
+from .client_character import client_character
 
 
-class ClientCharacterMongo:
-    """MongoDB data model for ClientCharacter with all persistent fields."""
+class client_character_mongo:
+    """MongoDB data model for client_character with all persistent fields."""
 
     def __init__(self):
         # Core character data
@@ -66,7 +67,7 @@ class ClientCharacterMongo:
         # Character identity
         self.is_gender_female: bool = False
         self.name: str = "<create new>"
-        self.clan: Optional[Clan] = DEFAULT_CLAN
+        self.clan: Optional[clan] = DEFAULT_CLAN
 
         # Appearance
         self.face_type: int = 0
@@ -85,8 +86,8 @@ class ClientCharacterMongo:
         self.is_not_queued_for_deletion: bool = True
         self.money: int = 0
         self.guild_level_minus_one: int = 0
-        self.guild: Guild = Guild.NONE
-        self.clan_rank: ClanRank = ClanRank.NEOPHYTE
+        self.guild: guild = guild.NONE
+        self.clan_rank: clan_rank = clan_rank.NEOPHYTE
 
         # Position and orientation
         self.x: float = 0.0
@@ -101,13 +102,13 @@ class ClientCharacterMongo:
         self.m_def: int = 0
 
         # Combat and karma
-        self.karma: KarmaTypes = KarmaTypes.NEUTRAL
-        self.items: Dict[BelongingSlot, int] = {}
+        self.karma: karma_types = karma_types.NEUTRAL
+        self.items: Dict[belonging_slot, int] = {}
         self.p_atk: int = 0
         self.m_atk: int = 0
         self.karma_count: int = 0
 
-        # User linking
+        # polyhedron_user linking
         self.user_id: Optional[str] = None  # Links character to user login
         self.character_slot_index: int = 0  # Character slot index (0, 1, 2, etc.)
 
@@ -117,9 +118,9 @@ class ClientCharacterMongo:
 
     @classmethod
     def from_client_character(
-        cls, character: ClientCharacter
-    ) -> "ClientCharacterMongo":
-        """Convert a ClientCharacter to ClientCharacterMongo."""
+        cls, character: client_character
+    ) -> "client_character_mongo":
+        """Convert a client_character to client_character_mongo."""
         mongo_char = cls()
 
         # Core character data
@@ -207,13 +208,13 @@ class ClientCharacterMongo:
         mongo_char.m_atk = character.m_atk
         mongo_char.karma_count = character.karma_count
 
-        # Note: user_id is not copied from ClientCharacter as it's set separately
+        # Note: user_id is not copied from client_character as it's set separately
 
         return mongo_char
 
-    def to_client_character(self) -> ClientCharacter:
-        """Convert ClientCharacterMongo to ClientCharacter."""
-        character = ClientCharacter()
+    def to_client_character(self) -> client_character:
+        """Convert client_character_mongo to client_character."""
+        character = client_character()
 
         # Core character data
         character.id = self.id
@@ -375,7 +376,7 @@ class ClientCharacterMongo:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "ClientCharacterMongo":
+    def from_dict(cls, data: Dict) -> "client_character_mongo":
         """Create a model instance from a dictionary."""
         instance = cls()
 
@@ -425,7 +426,7 @@ class ClientCharacterMongo:
         instance.name = data.get("name", "Test")
         clan_data = data.get("clan")
         if clan_data:
-            instance.clan = Clan(
+            instance.clan = clan(
                 clan_data.get("name", "Default"), clan_data.get("clan_id", 0)
             )
         else:
@@ -450,8 +451,8 @@ class ClientCharacterMongo:
         )
         instance.money = data.get("money", 0)
         instance.guild_level_minus_one = data.get("guild_level_minus_one", 0)
-        instance.guild = Guild(data.get("guild", Guild.NONE.value))
-        instance.clan_rank = ClanRank(data.get("clan_rank", ClanRank.NEOPHYTE.value))
+        instance.guild = guild(data.get("guild", guild.NONE.value))
+        instance.clan_rank = clan_rank(data.get("clan_rank", clan_rank.NEOPHYTE.value))
 
         # Position and orientation
         instance.x = data.get("x", 0.0)
@@ -466,16 +467,16 @@ class ClientCharacterMongo:
         instance.m_def = data.get("m_def", 0)
 
         # Combat and karma
-        instance.karma = KarmaTypes(data.get("karma", KarmaTypes.NEUTRAL.value))
+        instance.karma = karma_types(data.get("karma", karma_types.NEUTRAL.value))
         items_data = data.get("items", {})
         instance.items = {
-            BelongingSlot(int(slot)): item_id for slot, item_id in items_data.items()
+            belonging_slot(int(slot)): item_id for slot, item_id in items_data.items()
         }
         instance.p_atk = data.get("p_atk", 0)
         instance.m_atk = data.get("m_atk", 0)
         instance.karma_count = data.get("karma_count", 0)
 
-        # User linking
+        # polyhedron_user linking
         instance.user_id = data.get("user_id")
         instance.character_slot_index = data.get("character_slot_index", 0)
 
@@ -490,7 +491,7 @@ class ClientCharacterMongo:
         self.updated_at = datetime.now(timezone.utc)
 
 
-class CharacterDatabase:
+class character_database:
     """Database manager for character operations."""
 
     def __init__(
@@ -501,6 +502,7 @@ class CharacterDatabase:
         self.client = MongoClient(connection_string)
         self.db: Database = self.client[database_name]
         self.characters: Collection = self.db.characters
+        self.logger = logging.getLogger(self.__class__.__name__)
 
         # Create indexes
         self._create_indexes()
@@ -533,7 +535,7 @@ class CharacterDatabase:
         # Index on creation date for time-based queries
         self.characters.create_index("created_at")
 
-    def save_character(self, character: ClientCharacterMongo) -> bool:
+    def save_character(self, character: client_character_mongo) -> bool:
         """Save a character to the database."""
         try:
             character.update_timestamp()
@@ -545,41 +547,43 @@ class CharacterDatabase:
             )
             return result.acknowledged
         except Exception as e:
-            print(f"Error saving character: {e}")
+            self.logger.error(f"Error saving character: {e}")
             return False
 
-    def get_character_by_id(self, character_id: int) -> Optional[ClientCharacterMongo]:
+    def get_character_by_id(
+        self, character_id: int
+    ) -> Optional[client_character_mongo]:
         """Retrieve a character by ID."""
         try:
             character_data = self.characters.find_one({"id": character_id})
             if character_data:
-                return ClientCharacterMongo.from_dict(character_data)
+                return client_character_mongo.from_dict(character_data)
             return None
         except Exception as e:
-            print(f"Error retrieving character: {e}")
+            self.logger.error(f"Error retrieving character: {e}")
             return None
 
-    def get_character_by_name(self, name: str) -> Optional[ClientCharacterMongo]:
+    def get_character_by_name(self, name: str) -> Optional[client_character_mongo]:
         """Retrieve a character by name."""
         try:
             character_data = self.characters.find_one({"name": name})
             if character_data:
-                return ClientCharacterMongo.from_dict(character_data)
+                return client_character_mongo.from_dict(character_data)
             return None
         except Exception as e:
-            print(f"Error retrieving character by name: {e}")
+            self.logger.error(f"Error retrieving character by name: {e}")
             return None
 
-    def get_characters_by_guild(self, guild: Guild) -> list[ClientCharacterMongo]:
+    def get_characters_by_guild(self, guild: guild) -> list[client_character_mongo]:
         """Retrieve all characters in a specific guild."""
         try:
             characters_data = self.characters.find({"guild": guild.value})
-            return [ClientCharacterMongo.from_dict(data) for data in characters_data]
+            return [client_character_mongo.from_dict(data) for data in characters_data]
         except Exception as e:
             print(f"Error retrieving characters by guild: {e}")
             return []
 
-    def get_characters_by_user(self, user_id: str) -> list[ClientCharacterMongo]:
+    def get_characters_by_user(self, user_id: str) -> list[client_character_mongo]:
         """Retrieve all active characters belonging to a user."""
         try:
             characters_data = self.characters.find(
@@ -587,16 +591,16 @@ class CharacterDatabase:
             ).sort(
                 "character_slot_index", 1
             )  # Sort by character slot index
-            return [ClientCharacterMongo.from_dict(data) for data in characters_data]
+            return [client_character_mongo.from_dict(data) for data in characters_data]
         except Exception as e:
             print(f"Error retrieving characters for user {user_id}: {e}")
             return []
 
-    def get_active_characters(self) -> list[ClientCharacterMongo]:
+    def get_active_characters(self) -> list[client_character_mongo]:
         """Retrieve all characters not queued for deletion."""
         try:
             characters_data = self.characters.find({"is_not_queued_for_deletion": True})
-            return [ClientCharacterMongo.from_dict(data) for data in characters_data]
+            return [client_character_mongo.from_dict(data) for data in characters_data]
         except Exception as e:
             print(f"Error retrieving active characters: {e}")
             return []
@@ -640,7 +644,7 @@ class CharacterDatabase:
                 )
                 return False
 
-            character = ClientCharacterMongo.from_dict(character_data)
+            character = client_character_mongo.from_dict(character_data)
             result = self.permanently_delete_character(character.id)
 
             if result:
@@ -708,8 +712,8 @@ class CharacterDatabase:
     def create_character(self, character_data: dict) -> Optional[int]:
         """Create a new character from dictionary data."""
         try:
-            # Create a new ClientCharacterMongo instance
-            character = ClientCharacterMongo()
+            # Create a new client_character_mongo instance
+            character = client_character_mongo()
 
             # Set the character data
             character.user_id = character_data.get("user_id", "")
@@ -737,7 +741,7 @@ class CharacterDatabase:
                 return None
 
         except Exception as e:
-            print(f"Error creating character: {e}")
+            self.logger.error(f"Error creating character: {e}")
             return None
 
     def _generate_unique_character_id(self) -> int:

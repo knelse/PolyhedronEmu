@@ -1,18 +1,18 @@
 """
-Tests for the ClientCharacter data model.
+Tests for the client_character data model.
 """
 
 import unittest
-from data_models.client_character import ClientCharacter
-from data_models.enums import Guild, ClanRank, KarmaTypes, BelongingSlot
+from data_models.client_character import client_character
+from data_models.enums import guild, clan_rank, karma_types, belonging_slot
 
 
 class TestClientCharacter(unittest.TestCase):
-    """Test cases for ClientCharacter class."""
+    """Test cases for client_character class."""
 
     def setUp(self):
         """Set up test fixtures."""
-        self.character = ClientCharacter()
+        self.character = client_character()
 
     def test_character_initialization(self):
         """Test that character initializes with correct default values."""
@@ -23,9 +23,9 @@ class TestClientCharacter(unittest.TestCase):
         self.assertEqual(self.character.y, 150.0)
         self.assertTrue(self.character.is_not_queued_for_deletion)
         self.assertFalse(self.character.is_gender_female)
-        self.assertEqual(self.character.guild, Guild.NONE)
-        self.assertEqual(self.character.clan_rank, ClanRank.NEOPHYTE)
-        self.assertEqual(self.character.karma, KarmaTypes.NEUTRAL)
+        self.assertEqual(self.character.guild, guild.NONE)
+        self.assertEqual(self.character.clan_rank, clan_rank.NEOPHYTE)
+        self.assertEqual(self.character.karma, karma_types.NEUTRAL)
 
     def test_character_properties(self):
         """Test character property calculations."""
@@ -58,11 +58,11 @@ class TestClientCharacter(unittest.TestCase):
         self.assertEqual(len(self.character.items), 0)
 
         # Add some equipment
-        self.character.items[BelongingSlot.HELMET] = 1
-        self.character.items[BelongingSlot.CHESTPLATE] = 2
+        self.character.items[belonging_slot.HELMET] = 1
+        self.character.items[belonging_slot.CHESTPLATE] = 2
 
-        self.assertEqual(self.character.items[BelongingSlot.HELMET], 1)
-        self.assertEqual(self.character.items[BelongingSlot.CHESTPLATE], 2)
+        self.assertEqual(self.character.items[belonging_slot.HELMET], 1)
+        self.assertEqual(self.character.items[belonging_slot.CHESTPLATE], 2)
 
     def test_position_and_orientation(self):
         """Test position and orientation fields."""

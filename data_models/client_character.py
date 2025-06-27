@@ -3,12 +3,12 @@ Client character data model.
 """
 
 from typing import Dict, Optional
-from .enums import (
-    Guild,
-    ClanRank,
-    KarmaTypes,
-    BelongingSlot,
-    Clan,
+from data_models.enums import (
+    guild,
+    clan_rank,
+    karma_types,
+    belonging_slot,
+    clan,
     DEFAULT_CLAN,
     HEALTH_AT_TITLE,
     HEALTH_AT_DEGREE,
@@ -20,10 +20,10 @@ from .enums import (
     XP_PER_LEVEL_BASE,
     XP_PER_LEVEL_DELTA,
 )
-from utils.bitstream_utils import SimpleBitStream
+from utils.bitstream_utils import simple_bit_stream
 
 
-class ClientCharacter:
+class client_character:
     """Represents a client character with all game-related attributes."""
 
     def __init__(self):
@@ -72,7 +72,7 @@ class ClientCharacter:
         # Character identity
         self.is_gender_female: bool = False
         self.name: str = "Test"
-        self.clan: Optional[Clan] = DEFAULT_CLAN
+        self.clan: Optional[clan] = DEFAULT_CLAN
 
         # Appearance
         self.face_type: int = 0
@@ -91,8 +91,8 @@ class ClientCharacter:
         self.is_not_queued_for_deletion: bool = True
         self.money: int = 0
         self.guild_level_minus_one: int = 0
-        self.guild: Guild = Guild.NONE
-        self.clan_rank: ClanRank = ClanRank.NEOPHYTE
+        self.guild: guild = guild.NONE
+        self.clan_rank: clan_rank = clan_rank.NEOPHYTE
         self.player_index: int = 0
 
         # Position and orientation
@@ -108,8 +108,8 @@ class ClientCharacter:
         self.m_def: int = 0
 
         # Combat and karma
-        self.karma: KarmaTypes = KarmaTypes.NEUTRAL
-        self.items: Dict[BelongingSlot, int] = {}
+        self.karma: karma_types = karma_types.NEUTRAL
+        self.items: Dict[belonging_slot, int] = {}
         self.p_atk: int = 0
         self.m_atk: int = 0
         self.karma_count: int = 0
@@ -172,7 +172,7 @@ class ClientCharacter:
 
     def to_character_list_bytearray(self) -> bytearray:
         """Convert character to bytearray for character list with padded name."""
-        stream = SimpleBitStream()
+        stream = simple_bit_stream()
         look_type = 0x79 if self.is_not_queued_for_deletion else 0x19
         stream.write_bytes(bytes([0x6C, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
         stream.write_int(self.player_index, 16)
@@ -326,9 +326,9 @@ class ClientCharacter:
 
     def to_game_data_bytearray(self) -> bytearray:
         """Convert character to bytearray for game data transmission."""
-        from .world_coords import WorldCoords
+        from .world_coords import world_coords
 
-        stream = SimpleBitStream()
+        stream = simple_bit_stream()
 
         # Header
         stream.write_bytes(bytes([0x00, 0x01, 0x2C, 0x01, 0x00, 0x00, 0x04]))
@@ -353,7 +353,7 @@ class ClientCharacter:
 
         stream.write_int((name_encoded[-1] & 0b11111000) >> 3, 8)
 
-        # Clan information
+        # clan information
         if self.clan is None or self.clan.clan_id == DEFAULT_CLAN.clan_id:
             stream.write_bytes(bytes([0x00, 0x6E]))
         else:
@@ -384,10 +384,10 @@ class ClientCharacter:
         stream.write_bytes(bytes([0x1A, 0x98, 0x18, 0x19]))
 
         # Encode and write coordinates
-        x = WorldCoords.encode_server_coord(self.x)
-        y = WorldCoords.encode_server_coord(self.y)
-        z = WorldCoords.encode_server_coord(self.z)
-        t = WorldCoords.encode_server_coord(self.angle)
+        x = world_coords.encode_server_coord(self.x)
+        y = world_coords.encode_server_coord(self.y)
+        z = world_coords.encode_server_coord(self.z)
+        t = world_coords.encode_server_coord(self.angle)
 
         stream.write_bytes(bytes(x))
         stream.write_bytes(bytes(y))
@@ -398,24 +398,24 @@ class ClientCharacter:
 
         # Equipment slots
         equipment_slots = [
-            BelongingSlot.HELMET,
-            BelongingSlot.AMULET,
-            BelongingSlot.SHIELD,
-            BelongingSlot.CHESTPLATE,
-            BelongingSlot.GLOVES,
-            BelongingSlot.BELT,
-            BelongingSlot.BRACELET_LEFT,
-            BelongingSlot.BRACELET_RIGHT,
-            BelongingSlot.RING_1,
-            BelongingSlot.RING_2,
-            BelongingSlot.RING_3,
-            BelongingSlot.RING_4,
-            BelongingSlot.PANTS,
-            BelongingSlot.BOOTS,
-            BelongingSlot.GUILD,
-            BelongingSlot.MAP_BOOK,
-            BelongingSlot.RECIPE_BOOK,
-            BelongingSlot.MANTRA_BOOK,
+            belonging_slot.HELMET,
+            belonging_slot.AMULET,
+            belonging_slot.SHIELD,
+            belonging_slot.CHESTPLATE,
+            belonging_slot.GLOVES,
+            belonging_slot.BELT,
+            belonging_slot.BRACELET_LEFT,
+            belonging_slot.BRACELET_RIGHT,
+            belonging_slot.RING_1,
+            belonging_slot.RING_2,
+            belonging_slot.RING_3,
+            belonging_slot.RING_4,
+            belonging_slot.PANTS,
+            belonging_slot.BOOTS,
+            belonging_slot.GUILD,
+            belonging_slot.MAP_BOOK,
+            belonging_slot.RECIPE_BOOK,
+            belonging_slot.MANTRA_BOOK,
         ]
 
         for slot in equipment_slots:
@@ -427,22 +427,22 @@ class ClientCharacter:
 
         # More equipment slots
         more_slots = [
-            BelongingSlot.INKPOT,
-            BelongingSlot.MONEY,
-            BelongingSlot.BACKPACK,
-            BelongingSlot.KEY_1,
-            BelongingSlot.KEY_2,
-            BelongingSlot.MISSION,
-            BelongingSlot.INVENTORY_1,
-            BelongingSlot.INVENTORY_2,
-            BelongingSlot.INVENTORY_3,
-            BelongingSlot.INVENTORY_4,
-            BelongingSlot.INVENTORY_5,
-            BelongingSlot.INVENTORY_6,
-            BelongingSlot.INVENTORY_7,
-            BelongingSlot.INVENTORY_8,
-            BelongingSlot.INVENTORY_9,
-            BelongingSlot.INVENTORY_10,
+            belonging_slot.INKPOT,
+            belonging_slot.MONEY,
+            belonging_slot.BACKPACK,
+            belonging_slot.KEY_1,
+            belonging_slot.KEY_2,
+            belonging_slot.MISSION,
+            belonging_slot.INVENTORY_1,
+            belonging_slot.INVENTORY_2,
+            belonging_slot.INVENTORY_3,
+            belonging_slot.INVENTORY_4,
+            belonging_slot.INVENTORY_5,
+            belonging_slot.INVENTORY_6,
+            belonging_slot.INVENTORY_7,
+            belonging_slot.INVENTORY_8,
+            belonging_slot.INVENTORY_9,
+            belonging_slot.INVENTORY_10,
         ]
 
         for slot in more_slots:
@@ -454,17 +454,17 @@ class ClientCharacter:
 
         # Special slots
         special_slots = [
-            BelongingSlot.SPECIAL_1,
-            BelongingSlot.SPECIAL_2,
-            BelongingSlot.SPECIAL_3,
-            BelongingSlot.SPECIAL_4,
-            BelongingSlot.SPECIAL_5,
-            BelongingSlot.SPECIAL_6,
-            BelongingSlot.SPECIAL_7,
-            BelongingSlot.SPECIAL_8,
-            BelongingSlot.SPECIAL_9,
-            BelongingSlot.AMMO,
-            BelongingSlot.SPEEDHACK_MANTRA,
+            belonging_slot.SPECIAL_1,
+            belonging_slot.SPECIAL_2,
+            belonging_slot.SPECIAL_3,
+            belonging_slot.SPECIAL_4,
+            belonging_slot.SPECIAL_5,
+            belonging_slot.SPECIAL_6,
+            belonging_slot.SPECIAL_7,
+            belonging_slot.SPECIAL_8,
+            belonging_slot.SPECIAL_9,
+            belonging_slot.AMMO,
+            belonging_slot.SPEEDHACK_MANTRA,
         ]
 
         for slot in special_slots:
@@ -498,8 +498,8 @@ class ClientCharacter:
 
         stream.write_int(0x80, 8)
 
-        # Guild information
-        if self.guild == Guild.NONE:
+        # guild information
+        if self.guild == guild.NONE:
             stream.write_int(0x00, 8)
         else:
             stream.write_int((1 << 7) + (self.guild.value << 1), 8)
@@ -516,6 +516,6 @@ class ClientCharacter:
 
         return data
 
-    def _is_item_slot_empty(self, slot: BelongingSlot) -> bool:
+    def _is_item_slot_empty(self, slot: belonging_slot) -> bool:
         """Check if an item slot is empty."""
         return slot not in self.items or self.items[slot] == 0

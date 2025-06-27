@@ -1,15 +1,15 @@
 import socket
-from server.logger import ServerLogger
-from server.client_state_manager import ClientStateManager
-from server.utils.socket_utils import ServerSocketUtils
-from data_models.mongodb_models import CharacterDatabase
-from .exceptions import EnterGameException
+from server.logger import server_logger
+from server.client_state_manager import client_state_manager
+from server.utils.socket_utils import server_socket_utils
+from data_models.mongodb_models import character_database
+from .exceptions import enter_game_exception
 
 
-class EnterGameHandler:
+class enter_game_handler:
     """Handles sending enter game data to clients."""
 
-    def __init__(self, character_db: CharacterDatabase):
+    def __init__(self, character_db: character_database):
         self.character_db = character_db
 
     def send_enter_game_data(
@@ -17,8 +17,8 @@ class EnterGameHandler:
         character_slot_index: int,
         player_index: int,
         client_socket: socket.socket,
-        logger: ServerLogger,
-        state_manager: ClientStateManager,
+        logger: server_logger,
+        state_manager: client_state_manager,
     ) -> None:
         """
         Send enter game data for a newly created character.
@@ -32,13 +32,13 @@ class EnterGameHandler:
             state_manager: The client state manager
 
         Raises:
-            EnterGameException: If sending enter game data fails
+            enter_game_exception: If sending enter game data fails
         """
         try:
             # Get the user_id from state manager
             user_id = state_manager.get_user_id(player_index)
             if not user_id:
-                raise EnterGameException(
+                raise enter_game_exception(
                     f"Cannot send enter game data for player 0x{player_index:04X} - "
                     f"no user_id found"
                 )
@@ -53,15 +53,15 @@ class EnterGameHandler:
             )
 
             if not character_data:
-                raise EnterGameException(
+                raise enter_game_exception(
                     f"Cannot send enter game data for player 0x{player_index:04X} - "
                     f"character not found at slot {character_slot_index}"
                 )
 
-            # Convert MongoDB character to ClientCharacter
-            from data_models.mongodb_models import ClientCharacterMongo
+            # Convert MongoDB character to client_character
+            from data_models.mongodb_models import client_character_mongo
 
-            character_mongo = ClientCharacterMongo.from_dict(character_data)
+            character_mongo = client_character_mongo.from_dict(character_data)
             character = character_mongo.to_client_character()
 
             # Set the correct player index
@@ -71,7 +71,7 @@ class EnterGameHandler:
             game_data = character.to_game_data_bytearray()
 
             # Send the game data to the client
-            send_success = ServerSocketUtils.send_packet_with_logging(
+            send_success = server_socket_utils.send_packet_with_logging(
                 client_socket,
                 game_data,
                 player_index,
@@ -82,7 +82,7 @@ class EnterGameHandler:
             )
 
             if not send_success:
-                raise EnterGameException(
+                raise enter_game_exception(
                     f"Failed to send enter game data for player 0x{player_index:04X}"
                 )
 
@@ -93,9 +93,9 @@ class EnterGameHandler:
             )
             logger.info(msg)
 
-        except EnterGameException:
+        except enter_game_exception:
             raise
         except Exception as e:
-            raise EnterGameException(
+            raise enter_game_exception(
                 f"Error sending enter game data for player 0x{player_index:04X}: {str(e)}"
             )

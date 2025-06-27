@@ -1,11 +1,11 @@
 import socket
 import unittest
 from unittest.mock import Mock
-from server.utils.socket_utils import ServerSocketUtils
+from server.utils.socket_utils import server_socket_utils
 
 
 class TestServerSocketUtils(unittest.TestCase):
-    """Test cases for ServerSocketUtils class."""
+    """Test cases for server_socket_utils class."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -18,7 +18,7 @@ class TestServerSocketUtils(unittest.TestCase):
         """Test successful send with custom message."""
         custom_message = "Custom log message"
 
-        result = ServerSocketUtils.send_packet_with_logging(
+        result = server_socket_utils.send_packet_with_logging(
             self.mock_socket,
             self.test_data,
             self.player_index,
@@ -36,7 +36,7 @@ class TestServerSocketUtils(unittest.TestCase):
         test_exception = ConnectionResetError("Connection reset by peer")
         self.mock_socket.send.side_effect = test_exception
 
-        result = ServerSocketUtils.send_packet_with_logging(
+        result = server_socket_utils.send_packet_with_logging(
             self.mock_socket,
             self.test_data,
             self.player_index,
@@ -59,7 +59,7 @@ class TestServerSocketUtils(unittest.TestCase):
         test_exception = BrokenPipeError("Broken pipe")
         self.mock_socket.send.side_effect = test_exception
 
-        result = ServerSocketUtils.send_packet_with_logging(
+        result = server_socket_utils.send_packet_with_logging(
             self.mock_socket,
             self.test_data,
             self.player_index,
@@ -82,7 +82,7 @@ class TestServerSocketUtils(unittest.TestCase):
         test_exception = socket.error("Socket error")
         self.mock_socket.send.side_effect = test_exception
 
-        result = ServerSocketUtils.send_packet_with_logging(
+        result = server_socket_utils.send_packet_with_logging(
             self.mock_socket,
             self.test_data,
             self.player_index,
@@ -108,7 +108,7 @@ class TestServerSocketUtils(unittest.TestCase):
         test_exception = Exception("Generic error")
         self.mock_socket.send.side_effect = test_exception
 
-        result = ServerSocketUtils.send_packet_with_logging(
+        result = server_socket_utils.send_packet_with_logging(
             self.mock_socket,
             self.test_data,
             self.player_index,
@@ -134,7 +134,7 @@ class TestServerSocketUtils(unittest.TestCase):
         test_data = b"received data"
         self.mock_socket.recv.return_value = test_data
 
-        result = ServerSocketUtils.receive_packet_with_logging(
+        result = server_socket_utils.receive_packet_with_logging(
             self.mock_socket,
             self.player_index,
             self.mock_logger,
@@ -152,7 +152,7 @@ class TestServerSocketUtils(unittest.TestCase):
         """Test receive when client disconnects (empty data)."""
         self.mock_socket.recv.return_value = b""
 
-        result = ServerSocketUtils.receive_packet_with_logging(
+        result = server_socket_utils.receive_packet_with_logging(
             self.mock_socket,
             self.player_index,
             self.mock_logger,
@@ -168,7 +168,7 @@ class TestServerSocketUtils(unittest.TestCase):
         """Test receive with timeout."""
         self.mock_socket.recv.side_effect = socket.timeout("Timeout")
 
-        result = ServerSocketUtils.receive_packet_with_logging(
+        result = server_socket_utils.receive_packet_with_logging(
             self.mock_socket,
             self.player_index,
             self.mock_logger,
@@ -182,7 +182,7 @@ class TestServerSocketUtils(unittest.TestCase):
         """Test send_packet_or_cleanup with successful send."""
         cleanup_callback = Mock()
 
-        result = ServerSocketUtils.send_packet_or_cleanup(
+        result = server_socket_utils.send_packet_or_cleanup(
             self.mock_socket,
             self.test_data,
             self.player_index,
@@ -201,7 +201,7 @@ class TestServerSocketUtils(unittest.TestCase):
         self.mock_socket.send.side_effect = test_exception
         cleanup_callback = Mock()
 
-        result = ServerSocketUtils.send_packet_or_cleanup(
+        result = server_socket_utils.send_packet_or_cleanup(
             self.mock_socket,
             self.test_data,
             self.player_index,

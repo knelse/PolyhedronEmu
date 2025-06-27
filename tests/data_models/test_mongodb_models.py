@@ -3,17 +3,17 @@ Tests for MongoDB data models.
 """
 
 import unittest
-from data_models.mongodb_models import ClientCharacterMongo, CharacterDatabase
-from data_models.client_character import ClientCharacter
-from data_models.enums import Guild, ClanRank, KarmaTypes, BelongingSlot
+from data_models.mongodb_models import client_character_mongo, character_database
+from data_models.client_character import client_character
+from data_models.enums import guild, clan_rank, karma_types, belonging_slot
 
 
 class TestClientCharacterMongo(unittest.TestCase):
-    """Test cases for ClientCharacterMongo class."""
+    """Test cases for client_character_mongo class."""
 
     def setUp(self):
         """Set up test fixtures."""
-        self.mongo_char = ClientCharacterMongo()
+        self.mongo_char = client_character_mongo()
 
     def test_character_initialization(self):
         """Test that character initializes with correct default values."""
@@ -24,9 +24,9 @@ class TestClientCharacterMongo(unittest.TestCase):
         self.assertEqual(self.mongo_char.y, 150.0)
         self.assertTrue(self.mongo_char.is_not_queued_for_deletion)
         self.assertFalse(self.mongo_char.is_gender_female)
-        self.assertEqual(self.mongo_char.guild, Guild.NONE)
-        self.assertEqual(self.mongo_char.clan_rank, ClanRank.NEOPHYTE)
-        self.assertEqual(self.mongo_char.karma, KarmaTypes.NEUTRAL)
+        self.assertEqual(self.mongo_char.guild, guild.NONE)
+        self.assertEqual(self.mongo_char.clan_rank, clan_rank.NEOPHYTE)
+        self.assertEqual(self.mongo_char.karma, karma_types.NEUTRAL)
 
     def test_to_dict_conversion(self):
         """Test conversion to dictionary."""
@@ -39,9 +39,9 @@ class TestClientCharacterMongo(unittest.TestCase):
         self.assertEqual(char_dict["id"], 123)
         self.assertEqual(char_dict["name"], "TestCharacter")
         self.assertEqual(char_dict["money"], 1000)
-        self.assertEqual(char_dict["guild"], Guild.NONE.value)
-        self.assertEqual(char_dict["clan_rank"], ClanRank.NEOPHYTE.value)
-        self.assertEqual(char_dict["karma"], KarmaTypes.NEUTRAL.value)
+        self.assertEqual(char_dict["guild"], guild.NONE.value)
+        self.assertEqual(char_dict["clan_rank"], clan_rank.NEOPHYTE.value)
+        self.assertEqual(char_dict["karma"], karma_types.NEUTRAL.value)
 
     def test_from_dict_conversion(self):
         """Test conversion from dictionary."""
@@ -49,59 +49,59 @@ class TestClientCharacterMongo(unittest.TestCase):
             "id": 456,
             "name": "TestFromDict",
             "money": 2000,
-            "guild": Guild.NONE.value,
-            "clan_rank": ClanRank.NEOPHYTE.value,
-            "karma": KarmaTypes.NEUTRAL.value,
+            "guild": guild.NONE.value,
+            "clan_rank": clan_rank.NEOPHYTE.value,
+            "karma": karma_types.NEUTRAL.value,
             "is_gender_female": True,
             "current_hp": 100,
             "max_hp": 150,
         }
 
-        mongo_char = ClientCharacterMongo.from_dict(char_dict)
+        mongo_char = client_character_mongo.from_dict(char_dict)
 
         self.assertEqual(mongo_char.id, 456)
         self.assertEqual(mongo_char.name, "TestFromDict")
         self.assertEqual(mongo_char.money, 2000)
-        self.assertEqual(mongo_char.guild, Guild.NONE)
-        self.assertEqual(mongo_char.clan_rank, ClanRank.NEOPHYTE)
-        self.assertEqual(mongo_char.karma, KarmaTypes.NEUTRAL)
+        self.assertEqual(mongo_char.guild, guild.NONE)
+        self.assertEqual(mongo_char.clan_rank, clan_rank.NEOPHYTE)
+        self.assertEqual(mongo_char.karma, karma_types.NEUTRAL)
         self.assertTrue(mongo_char.is_gender_female)
         self.assertEqual(mongo_char.current_hp, 100)
         self.assertEqual(mongo_char.max_hp, 150)
 
     def test_from_client_character_conversion(self):
-        """Test conversion from ClientCharacter."""
-        client_char = ClientCharacter()
+        """Test conversion from client_character."""
+        client_char = client_character()
         client_char.id = 789
         client_char.name = "TestConversion"
         client_char.money = 3000
-        client_char.guild = Guild.NONE
-        client_char.clan_rank = ClanRank.NEOPHYTE
-        client_char.karma = KarmaTypes.NEUTRAL
+        client_char.guild = guild.NONE
+        client_char.clan_rank = clan_rank.NEOPHYTE
+        client_char.karma = karma_types.NEUTRAL
         client_char.is_gender_female = True
         client_char.current_hp = 200
         client_char.max_hp = 250
 
-        mongo_char = ClientCharacterMongo.from_client_character(client_char)
+        mongo_char = client_character_mongo.from_client_character(client_char)
 
         self.assertEqual(mongo_char.id, 789)
         self.assertEqual(mongo_char.name, "TestConversion")
         self.assertEqual(mongo_char.money, 3000)
-        self.assertEqual(mongo_char.guild, Guild.NONE)
-        self.assertEqual(mongo_char.clan_rank, ClanRank.NEOPHYTE)
-        self.assertEqual(mongo_char.karma, KarmaTypes.NEUTRAL)
+        self.assertEqual(mongo_char.guild, guild.NONE)
+        self.assertEqual(mongo_char.clan_rank, clan_rank.NEOPHYTE)
+        self.assertEqual(mongo_char.karma, karma_types.NEUTRAL)
         self.assertTrue(mongo_char.is_gender_female)
         self.assertEqual(mongo_char.current_hp, 200)
         self.assertEqual(mongo_char.max_hp, 250)
 
     def test_to_client_character_conversion(self):
-        """Test conversion to ClientCharacter."""
+        """Test conversion to client_character."""
         self.mongo_char.id = 999
         self.mongo_char.name = "TestToClient"
         self.mongo_char.money = 4000
-        self.mongo_char.guild = Guild.NONE
-        self.mongo_char.clan_rank = ClanRank.NEOPHYTE
-        self.mongo_char.karma = KarmaTypes.NEUTRAL
+        self.mongo_char.guild = guild.NONE
+        self.mongo_char.clan_rank = clan_rank.NEOPHYTE
+        self.mongo_char.karma = karma_types.NEUTRAL
         self.mongo_char.is_gender_female = False
         self.mongo_char.current_hp = 300
         self.mongo_char.max_hp = 350
@@ -111,9 +111,9 @@ class TestClientCharacterMongo(unittest.TestCase):
         self.assertEqual(client_char.id, 999)
         self.assertEqual(client_char.name, "TestToClient")
         self.assertEqual(client_char.money, 4000)
-        self.assertEqual(client_char.guild, Guild.NONE)
-        self.assertEqual(client_char.clan_rank, ClanRank.NEOPHYTE)
-        self.assertEqual(client_char.karma, KarmaTypes.NEUTRAL)
+        self.assertEqual(client_char.guild, guild.NONE)
+        self.assertEqual(client_char.clan_rank, clan_rank.NEOPHYTE)
+        self.assertEqual(client_char.karma, karma_types.NEUTRAL)
         self.assertFalse(client_char.is_gender_female)
         self.assertEqual(client_char.current_hp, 300)
         self.assertEqual(client_char.max_hp, 350)
@@ -121,18 +121,18 @@ class TestClientCharacterMongo(unittest.TestCase):
     def test_items_conversion(self):
         """Test items dictionary conversion."""
         self.mongo_char.items = {
-            BelongingSlot.HELMET: 1,
-            BelongingSlot.CHESTPLATE: 2,
+            belonging_slot.HELMET: 1,
+            belonging_slot.CHESTPLATE: 2,
         }
 
         char_dict = self.mongo_char.to_dict()
         self.assertEqual(
             char_dict["items"],
-            {BelongingSlot.HELMET.value: 1, BelongingSlot.CHESTPLATE.value: 2},
+            {belonging_slot.HELMET.value: 1, belonging_slot.CHESTPLATE.value: 2},
         )
 
         # Test conversion back
-        mongo_char_from_dict = ClientCharacterMongo.from_dict(char_dict)
+        mongo_char_from_dict = client_character_mongo.from_dict(char_dict)
         self.assertEqual(mongo_char_from_dict.items, self.mongo_char.items)
 
     def test_timestamp_update(self):
@@ -143,12 +143,12 @@ class TestClientCharacterMongo(unittest.TestCase):
 
 
 class TestCharacterDatabase(unittest.TestCase):
-    """Test cases for CharacterDatabase class."""
+    """Test cases for character_database class."""
 
     def setUp(self):
         """Set up test fixtures."""
         # Use a test database
-        self.db = CharacterDatabase(
+        self.db = character_database(
             connection_string="mongodb://localhost:27017/",
             database_name="polyhedron_emu_test",
         )
@@ -168,7 +168,7 @@ class TestCharacterDatabase(unittest.TestCase):
 
     def test_save_and_retrieve_character(self):
         """Test saving and retrieving a character."""
-        mongo_char = ClientCharacterMongo()
+        mongo_char = client_character_mongo()
         mongo_char.id = 1001
         mongo_char.name = "TestSaveRetrieve"
         mongo_char.money = 5000
@@ -186,7 +186,7 @@ class TestCharacterDatabase(unittest.TestCase):
 
     def test_get_character_by_name(self):
         """Test retrieving character by name."""
-        mongo_char = ClientCharacterMongo()
+        mongo_char = client_character_mongo()
         mongo_char.id = 1002
         mongo_char.name = "TestNameLookup"
 
@@ -202,20 +202,20 @@ class TestCharacterDatabase(unittest.TestCase):
     def test_get_characters_by_guild(self):
         """Test retrieving characters by guild."""
         # Create characters in different guilds
-        char1 = ClientCharacterMongo()
+        char1 = client_character_mongo()
         char1.id = 1003
         char1.name = "GuildChar1"
-        char1.guild = Guild.NONE
+        char1.guild = guild.NONE
 
-        char2 = ClientCharacterMongo()
+        char2 = client_character_mongo()
         char2.id = 1004
         char2.name = "GuildChar2"
-        char2.guild = Guild.NONE
+        char2.guild = guild.NONE
 
-        char3 = ClientCharacterMongo()
+        char3 = client_character_mongo()
         char3.id = 1005
         char3.name = "OtherGuildChar"
-        char3.guild = Guild.ASSASIN
+        char3.guild = guild.ASSASIN
 
         # Save characters
         self.db.save_character(char1)
@@ -223,7 +223,7 @@ class TestCharacterDatabase(unittest.TestCase):
         self.db.save_character(char3)
 
         # Get characters by guild
-        guild_chars = self.db.get_characters_by_guild(Guild.NONE)
+        guild_chars = self.db.get_characters_by_guild(guild.NONE)
         self.assertEqual(len(guild_chars), 2)
         char_names = [char.name for char in guild_chars]
         self.assertIn("GuildChar1", char_names)
@@ -231,7 +231,7 @@ class TestCharacterDatabase(unittest.TestCase):
 
     def test_delete_character(self):
         """Test character deletion."""
-        mongo_char = ClientCharacterMongo()
+        mongo_char = client_character_mongo()
         mongo_char.id = 1006
         mongo_char.name = "TestDelete"
 
@@ -257,7 +257,7 @@ class TestCharacterDatabase(unittest.TestCase):
         initial_count = self.db.get_character_count()
 
         # Add a character
-        mongo_char = ClientCharacterMongo()
+        mongo_char = client_character_mongo()
         mongo_char.id = 1007
         mongo_char.name = "TestCount"
         self.db.save_character(mongo_char)
@@ -273,17 +273,17 @@ class TestCharacterDatabase(unittest.TestCase):
     def test_get_characters_by_user(self):
         """Test retrieving characters by user ID."""
         # Create characters for different users
-        char1 = ClientCharacterMongo()
+        char1 = client_character_mongo()
         char1.id = 1
         char1.name = "UserChar1"
         char1.user_id = "testuser1"
 
-        char2 = ClientCharacterMongo()
+        char2 = client_character_mongo()
         char2.id = 2
         char2.name = "UserChar2"
         char2.user_id = "testuser1"
 
-        char3 = ClientCharacterMongo()
+        char3 = client_character_mongo()
         char3.id = 3
         char3.name = "OtherChar"
         char3.user_id = "testuser2"

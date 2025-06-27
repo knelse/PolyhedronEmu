@@ -6,10 +6,10 @@ between the server and clients.
 """
 
 from server.utils.time_utils import encode_ingame_time
-from utils.bitstream_utils import SimpleBitStream
+from utils.bitstream_utils import simple_bit_stream
 
 
-class ServerPackets:
+class server_packets:
     """Container for server-to-client packet definitions."""
 
     # Initialization packet sent to new clients when they connect
@@ -19,7 +19,7 @@ class ServerPackets:
     TRANSMISSION_END_PACKET = bytes([0x04, 0x00, 0xF4, 0x01])
 
     def get_server_credentials(player_index: int) -> bytes:
-        stream = SimpleBitStream()
+        stream = simple_bit_stream()
         current_time = encode_ingame_time()
         stream.write_bytes(bytes([0x38, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
         stream.write_int(player_index, 16)
@@ -72,7 +72,7 @@ class ServerPackets:
         return stream.to_bytes()
 
     def get_character_select_start_data(player_index: int) -> bytes:
-        stream = SimpleBitStream()
+        stream = simple_bit_stream()
         stream.write_bytes(bytes([0x52, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
         stream.write_int(player_index, 16)
         stream.write_bytes(
@@ -157,7 +157,7 @@ class ServerPackets:
         return stream.to_bytes()
 
     def get_new_character_data(player_index: int) -> bytes:
-        stream = SimpleBitStream()
+        stream = simple_bit_stream()
         stream.write_bytes(bytes([0x6C, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
         stream.write_int(player_index, 16)
         stream.write_bytes(
@@ -268,28 +268,28 @@ class ServerPackets:
         return stream.to_bytes()
 
     def character_name_already_taken(player_index: int) -> bytes:
-        stream = SimpleBitStream()
+        stream = simple_bit_stream()
         stream.write_bytes(bytes([0x0E, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
         stream.write_int(player_index, 16)
         stream.write_bytes(bytes([0x08, 0x40, 0x00, 0x01, 0x00]))
         return stream.to_bytes()
 
     def character_name_check_success(player_index: int) -> bytes:
-        stream = SimpleBitStream()
+        stream = simple_bit_stream()
         stream.write_bytes(bytes([0x0E, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
         stream.write_int(player_index, 16)
         stream.write_bytes(bytes([0x08, 0x40, 0x80, 0x00, 0x00]))
         return stream.to_bytes()
 
     def connection_error(player_index: int) -> bytes:
-        stream = SimpleBitStream()
+        stream = simple_bit_stream()
         stream.write_bytes(bytes([0x0E, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
         stream.write_int(player_index, 16)
         stream.write_bytes(bytes([0x08, 0x40, 0xA0, 0x00, 0x00]))
         return stream.to_bytes()
 
     def new_character_world_data(player_index: int) -> bytes:
-        stream = SimpleBitStream()
+        stream = simple_bit_stream()
         stream.write_bytes(bytes([0xA8, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
         stream.write_int(player_index, 16)
         stream.write_bytes(
@@ -782,7 +782,7 @@ class ServerPackets:
     @staticmethod
     def keepalive_6_seconds(player_index: int) -> bytes:
         """Generate a 6-second keepalive packet for the specified player."""
-        stream = SimpleBitStream()
+        stream = simple_bit_stream()
         stream.write_bytes(bytes([0x06, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
         stream.write_int(player_index, 16)
         return stream.to_bytes()
@@ -790,12 +790,12 @@ class ServerPackets:
     @staticmethod
     def keepalive_15_seconds(player_index: int) -> bytes:
         """Generate a 15-second keepalive packet for the specified player."""
-        stream = SimpleBitStream()
+        stream = simple_bit_stream()
         stream.write_bytes(bytes([0x0A, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
         stream.write_int(player_index, 16)
         stream.write_bytes(bytes([0x08, 0x00]))
         return stream.to_bytes()
 
 
-INIT_PACKET = ServerPackets.INIT_PACKET
-TRANSMISSION_END_PACKET = ServerPackets.TRANSMISSION_END_PACKET
+INIT_PACKET = server_packets.INIT_PACKET
+TRANSMISSION_END_PACKET = server_packets.TRANSMISSION_END_PACKET

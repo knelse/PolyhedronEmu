@@ -1,16 +1,16 @@
 import socket
-from server.logger import ServerLogger
-from server.client_state_manager import ClientStateManager
+from server.logger import server_logger
+from server.client_state_manager import client_state_manager
 from server.utils.login_utils import (
     get_encrypted_login_and_password,
     decrypt_login_and_password,
 )
-from server.utils.socket_utils import ServerSocketUtils
+from server.utils.socket_utils import server_socket_utils
 from server.auth_pipeline import auth_pipeline
-from .exceptions import AuthenticationException
+from .exceptions import authentication_exception
 
 
-class AuthenticationHandler:
+class authentication_handler:
     """Handles user authentication and registration."""
 
     @staticmethod
@@ -18,21 +18,21 @@ class AuthenticationHandler:
         login_packet: bytes,
         player_index: int,
         client_socket: socket.socket,
-        logger: ServerLogger,
-        state_manager: ClientStateManager,
+        logger: server_logger,
+        state_manager: client_state_manager,
     ) -> None:
         """
         Process user authentication from login packet.
 
         Args:
-            login_packet: The received login packet data
-            player_index: The player's index
-            client_socket: The client's socket connection
-            logger: The server logger instance
-            state_manager: The client state manager
+                login_packet: The received login packet data
+                player_index: The player's index
+                client_socket: The client's socket connection
+                logger: The server logger instance
+                state_manager: The client state manager
 
         Raises:
-            AuthenticationException: If authentication fails
+                authentication_exception: If authentication fails
         """
         try:
             login_bytes, password_bytes = get_encrypted_login_and_password(login_packet)
@@ -56,7 +56,7 @@ class AuthenticationHandler:
                 failure_packet = auth_pipeline.get_authentication_failure_packet(
                     player_index
                 )
-                ServerSocketUtils.send_packet_with_logging(
+                server_socket_utils.send_packet_with_logging(
                     client_socket,
                     failure_packet,
                     player_index,
@@ -71,19 +71,19 @@ class AuthenticationHandler:
                 except Exception:
                     pass
 
-                raise AuthenticationException(
+                raise authentication_exception(
                     f"Authentication failed for player 0x{player_index:04X}: {auth_result.message}"
                 )
 
             # Log successful authentication
-            if auth_result.is_new_user:
+            if auth_result.is_new_polyhedron_user:
                 msg = (
                     f"New user registered and authenticated: {auth_result.user.login} "
                     f"(player 0x{player_index:04X})"
                 )
             else:
                 msg = (
-                    f"User authenticated: {auth_result.user.login} "
+                    f"user authenticated: {auth_result.user.login} "
                     f"(player 0x{player_index:04X}, login #{auth_result.user.login_count})"
                 )
             logger.info(msg)
@@ -91,9 +91,9 @@ class AuthenticationHandler:
             # Store user_id for later use
             state_manager.set_user_id(player_index, auth_result.user.login)
 
-        except AuthenticationException:
+        except authentication_exception:
             raise
         except Exception as e:
-            raise AuthenticationException(
+            raise authentication_exception(
                 f"Failed to decode login data for player 0x{player_index:04X}: {str(e)}"
             )

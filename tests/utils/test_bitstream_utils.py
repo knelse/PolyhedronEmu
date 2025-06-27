@@ -1,7 +1,7 @@
 import unittest
 import sys
 import os
-from utils.bitstream_utils import SimpleBitStream
+from utils.bitstream_utils import simple_bit_stream
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -10,7 +10,7 @@ class TestSimpleBitStream(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures before each test method."""
-        self.stream = SimpleBitStream()
+        self.stream = simple_bit_stream()
 
     def test_write_read_basic(self):
         """Test basic write_int and read_int functionality."""
@@ -37,7 +37,7 @@ class TestSimpleBitStream(unittest.TestCase):
 
         for value in test_values:
             with self.subTest(value=value):
-                stream = SimpleBitStream()
+                stream = simple_bit_stream()
                 stream.write_int(value, 8)
                 stream.reset_read_position()
                 result = stream.read_int(8)
@@ -52,7 +52,7 @@ class TestSimpleBitStream(unittest.TestCase):
         self.assertEqual(result, 65535)
 
         # Test 12-bit value
-        stream2 = SimpleBitStream()
+        stream2 = simple_bit_stream()
         stream2.write_int(4095, 12)  # Max 12-bit value (0xFFF)
         stream2.reset_read_position()
         result = stream2.read_int(12)
@@ -112,7 +112,7 @@ class TestSimpleBitStream(unittest.TestCase):
 
         for value, bits in test_cases:
             with self.subTest(value=value, bits=bits):
-                stream = SimpleBitStream()
+                stream = simple_bit_stream()
                 stream.write_int(value, bits)
                 stream.reset_read_position()
                 result = stream.read_int(bits)
@@ -169,7 +169,7 @@ class TestSimpleBitStream(unittest.TestCase):
 
         for value, expected_bits in test_cases:
             with self.subTest(value=value):
-                stream = SimpleBitStream()
+                stream = simple_bit_stream()
                 stream.write_int(value)  # No bit count specified
 
                 # The bit count should be auto-determined
@@ -188,7 +188,7 @@ class TestSimpleBitStream(unittest.TestCase):
         self.assertEqual(result, expected)
 
     def test_utility_methods(self):
-        """Test utility methods of SimpleBitStream."""
+        """Test utility methods of simple_bit_stream."""
         # Test empty stream
         self.assertTrue(self.stream.is_empty())
         self.assertEqual(self.stream.get_bit_length(), 0)
@@ -208,9 +208,9 @@ class TestSimpleBitStream(unittest.TestCase):
         self.assertEqual(self.stream.available_bits(), 4)
 
     def test_initialization_with_data(self):
-        """Test initializing SimpleBitStream with existing data."""
+        """Test initializing simple_bit_stream with existing data."""
         initial_data = bytes([0x01, 0x02, 0x03])
-        stream = SimpleBitStream(initial_data)
+        stream = simple_bit_stream(initial_data)
 
         # Should be able to read the initial data
         result = stream.read_bytes(len(initial_data))

@@ -2,11 +2,11 @@ import sys
 import unittest
 from unittest.mock import MagicMock, patch
 from server.enter_game_world_pipeline.character_creation_handler import (
-    CharacterCreationHandler,
+    character_creation_handler,
 )
-from server.enter_game_world_pipeline.exceptions import CharacterCreationException
-from server.logger import ServerLogger
-from data_models.mongodb_models import CharacterDatabase
+from server.enter_game_world_pipeline.exceptions import character_creation_exception
+from server.logger import server_logger
+from data_models.mongodb_models import character_database
 
 sys.modules["py4godot"] = MagicMock()
 sys.modules["py4godot.classes"] = MagicMock()
@@ -14,13 +14,13 @@ sys.modules["py4godot.classes.Node3D"] = MagicMock()
 
 
 class TestCharacterCreationHandler(unittest.TestCase):
-    """Test CharacterCreationHandler functionality."""
+    """Test character_creation_handler functionality."""
 
     def setUp(self):
         """Set up test fixtures."""
-        self.mock_character_db = MagicMock(spec=CharacterDatabase)
-        self.handler = CharacterCreationHandler(self.mock_character_db)
-        self.mock_logger = MagicMock(spec=ServerLogger)
+        self.mock_character_db = MagicMock(spec=character_database)
+        self.handler = character_creation_handler(self.mock_character_db)
+        self.mock_logger = MagicMock(spec=server_logger)
         self.player_index = 0x5000
 
     def test_create_character_from_packet_success(self):
@@ -52,7 +52,7 @@ class TestCharacterCreationHandler(unittest.TestCase):
         ):
             self.mock_character_db.character_name_exists.return_value = True
 
-            with self.assertRaises(CharacterCreationException) as cm:
+            with self.assertRaises(character_creation_exception) as cm:
                 self.handler.create_character_from_packet(
                     test_packet, "testuser", 1, self.player_index, self.mock_logger
                 )
@@ -73,7 +73,7 @@ class TestCharacterCreationHandler(unittest.TestCase):
             self.mock_character_db.character_name_exists.return_value = False
             self.mock_character_db.create_character.return_value = None  # DB failure
 
-            with self.assertRaises(CharacterCreationException) as cm:
+            with self.assertRaises(character_creation_exception) as cm:
                 self.handler.create_character_from_packet(
                     test_packet, "testuser", 1, self.player_index, self.mock_logger
                 )
@@ -88,7 +88,7 @@ class TestCharacterCreationHandler(unittest.TestCase):
         with patch.object(
             self.handler, "_decode_character_name", side_effect=Exception("Test error")
         ):
-            with self.assertRaises(CharacterCreationException) as cm:
+            with self.assertRaises(character_creation_exception) as cm:
                 self.handler.create_character_from_packet(
                     test_packet, "testuser", 1, self.player_index, self.mock_logger
                 )

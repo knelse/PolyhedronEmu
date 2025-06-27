@@ -22,24 +22,24 @@ sys.modules["py4godot.classes.Node"] = mock_node_module
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 # Import after mocking py4godot dependencies  # noqa: E402
-from server.player.character_sheet import CharacterSheet  # noqa: E402
-from data_models.client_character import ClientCharacter  # noqa: E402
+from server.player.character_sheet import character_sheet  # noqa: E402
+from data_models.client_character import client_character  # noqa: E402
 
 
 class TestCharacterSheet(unittest.TestCase):
-    """Test cases for CharacterSheet class."""
+    """Test cases for character_sheet class."""
 
     def setUp(self):
         """Set up test fixtures."""
-        self.character_sheet = CharacterSheet()
+        self.character_sheet = character_sheet()
 
-        # Create a mock ClientCharacter for testing
-        self.mock_character_data = Mock(spec=ClientCharacter)
+        # Create a mock client_character for testing
+        self.mock_character_data = Mock(spec=client_character)
         self.mock_character_data.character_name = "TestCharacter"
         self.mock_character_data.player_index = 0x5000
 
     def test_initialization(self):
-        """Test CharacterSheet initialization."""
+        """Test character_sheet initialization."""
         self.assertIsNotNone(self.character_sheet)
         self.assertIsNone(self.character_sheet.character_data)
         self.assertFalse(self.character_sheet.has_character_data())
@@ -88,7 +88,7 @@ class TestCharacterSheet(unittest.TestCase):
         self.character_sheet.set_character_data(self.mock_character_data)
 
         # Create new mock data
-        new_mock_data = Mock(spec=ClientCharacter)
+        new_mock_data = Mock(spec=client_character)
         new_mock_data.character_name = "NewCharacter"
         new_mock_data.player_index = 0x5001
 

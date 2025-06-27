@@ -1,10 +1,13 @@
-[gd_scene load_steps=3 format=3 uid="uid://bvqxm8y4j5k2p"]
+[gd_scene load_steps=4 format=3 uid="uid://bvqxm8y4j5k2p"]
+
+[ext_resource type="Script" path="res://server/player/player_ingame_handler.py" id="1_xhfnw"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_1"]
 
 [node name="Player" type="Node3D"]
+script = ExtResource("1_xhfnw")
 
 [node name="PlayerModel3d" type="StaticBody3D" parent="."]
 
@@ -14,4 +17,4 @@ shape = SubResource("CapsuleShape3D_1")
 [node name="PlayerModel3dMesh" type="MeshInstance3D" parent="PlayerModel3d"]
 mesh = SubResource("CapsuleMesh_1")
 
-[node name="CharacterSheet" type="Node" parent="."]
+[node name="character_sheet" type="Node" parent="."]

@@ -4,9 +4,9 @@ Test character screen functionality.
 
 import unittest
 from unittest.mock import MagicMock
-from data_models.mongodb_models import CharacterDatabase, ClientCharacterMongo
-from server.client_state_manager import ClientStateManager
-from server.logger import ServerLogger
+from data_models.mongodb_models import character_database, client_character_mongo
+from server.client_state_manager import client_state_manager
+from server.logger import server_logger
 
 
 class TestCharacterScreen(unittest.TestCase):
@@ -14,34 +14,34 @@ class TestCharacterScreen(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.logger = MagicMock(spec=ServerLogger)
-        self.state_manager = ClientStateManager(self.logger)
+        self.logger = MagicMock(spec=server_logger)
+        self.state_manager = client_state_manager(self.logger)
 
         # Mock database for testing
-        self.mock_db = MagicMock(spec=CharacterDatabase)
+        self.mock_db = MagicMock(spec=character_database)
 
     def test_delete_character_by_user_index(self):
         """Test deleting character by user ID and index."""
-        # Create a real CharacterDatabase instance for testing
+        # Create a real character_database instance for testing
         from unittest.mock import patch
 
         with patch("data_models.mongodb_models.MongoClient"):
-            db = CharacterDatabase()
+            db = character_database()
 
             # Create mock characters
-            char1 = ClientCharacterMongo()
+            char1 = client_character_mongo()
             char1.id = 1
             char1.name = "TestChar1"
             char1.user_id = "testuser"
             char1.character_slot_index = 0
 
-            char2 = ClientCharacterMongo()
+            char2 = client_character_mongo()
             char2.id = 2
             char2.name = "TestChar2"
             char2.user_id = "testuser"
             char2.character_slot_index = 1
 
-            char3 = ClientCharacterMongo()
+            char3 = client_character_mongo()
             char3.id = 3
             char3.name = "TestChar3"
             char3.user_id = "testuser"
@@ -73,7 +73,7 @@ class TestCharacterScreen(unittest.TestCase):
         from unittest.mock import patch
 
         with patch("data_models.mongodb_models.MongoClient"):
-            db = CharacterDatabase()
+            db = character_database()
 
             # Mock the database methods
             with patch.object(db.characters, "find_one") as mock_find_one:
@@ -143,7 +143,7 @@ class TestCharacterScreen(unittest.TestCase):
         from unittest.mock import patch
 
         with patch("data_models.mongodb_models.MongoClient"):
-            db = CharacterDatabase()
+            db = character_database()
 
             # Mock characters data - slots 0 and 2 are taken
             mock_characters_data = [
@@ -194,7 +194,7 @@ class TestCharacterScreen(unittest.TestCase):
         from unittest.mock import patch
 
         with patch("data_models.mongodb_models.MongoClient"):
-            db = CharacterDatabase()
+            db = character_database()
 
             # Test name exists
             with patch.object(db.characters, "find_one") as mock_find_one:
@@ -219,7 +219,7 @@ class TestCharacterScreen(unittest.TestCase):
         from unittest.mock import patch
 
         with patch("data_models.mongodb_models.MongoClient"):
-            db = CharacterDatabase()
+            db = character_database()
 
             character_data = {
                 "user_id": "testuser",

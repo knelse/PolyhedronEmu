@@ -3,7 +3,7 @@ Exceptions for the server module.
 """
 
 
-class StateTransitionException(Exception):
+class state_transition_exception(Exception):
     """Exception raised when client state transition fails."""
 
     pass

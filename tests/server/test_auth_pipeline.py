@@ -7,27 +7,27 @@ from unittest.mock import Mock, patch
 import tempfile
 import os
 
-from server.auth_pipeline import AuthorizationPipeline, AuthResult, AuthResultType
-from data_models.user_models import User, UserDatabase
-from server.auth_config import AuthConfig
+from server.auth_pipeline import authorization_pipeline, auth_result, auth_result_type
+from data_models.user_models import polyhedron_user, polyhedron_user_database
+from server.auth_config import auth_config
 
 
 class TestAuthResult(unittest.TestCase):
-    """Test AuthResult class."""
+    """Test auth_result class."""
 
     def test_auth_result_success(self):
         """Test successful auth result."""
-        user = User("testuser", "hash123")
-        result = AuthResult(True, AuthResultType.SUCCESS, user, False)
+        test_user = polyhedron_user("testuser", "hash123")
+        result = auth_result(True, auth_result_type.SUCCESS, test_user, False)
 
         self.assertTrue(result.success)
         self.assertEqual(result.message, "Authentication successful")
-        self.assertEqual(result.user, user)
+        self.assertEqual(result.user, test_user)
         self.assertFalse(result.is_new_user)
 
     def test_auth_result_failure(self):
         """Test failed auth result."""
-        result = AuthResult(False, AuthResultType.INVALID_PASSWORD)
+        result = auth_result(False, auth_result_type.INVALID_PASSWORD)
 
         self.assertFalse(result.success)
         self.assertEqual(result.message, "Invalid password")
@@ -36,15 +36,19 @@ class TestAuthResult(unittest.TestCase):
 
     def test_auth_result_str(self):
         """Test string representation."""
-        user = User("testuser", "hash123")
-        result = AuthResult(True, AuthResultType.REGISTRATION_SUCCESS, user, True)
+        test_user = polyhedron_user("testuser", "hash123")
+        result = auth_result(
+            True, auth_result_type.REGISTRATION_SUCCESS, test_user, True
+        )
 
-        expected = "Auth SUCCESS: registration_success (user: testuser) [NEW USER]"
+        expected = (
+            "Auth SUCCESS: registration_success (polyhedron_user: testuser) [NEW USER]"
+        )
         self.assertEqual(str(result), expected)
 
 
 class TestAuthorizationPipeline(unittest.TestCase):
-    """Test AuthorizationPipeline class."""
+    """Test authorization_pipeline class."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -61,11 +65,11 @@ class TestAuthorizationPipeline(unittest.TestCase):
         self.mock_config.max_password_length = 100
         self.mock_config.min_password_length = 3
 
-        # Mock the UserDatabase
-        self.mock_user_db = Mock(spec=UserDatabase)
+        # Mock the user_database
+        self.mock_user_db = Mock(spec=polyhedron_user_database)
 
         # Create pipeline with mocked database
-        self.pipeline = AuthorizationPipeline()
+        self.pipeline = authorization_pipeline()
         self.pipeline.user_db = self.mock_user_db
 
     def tearDown(self):
@@ -88,7 +92,11 @@ class TestAuthorizationPipeline(unittest.TestCase):
         mock_user.login_count = 5
 
         # Mock successful authentication
-        self.mock_user_db.authenticate_user.return_value = (True, "Success", mock_user)
+        self.mock_user_db.authenticate_polyhedron_user.return_value = (
+            True,
+            "Success",
+            mock_user,
+        )
 
         result = self.pipeline.authenticate_or_register("testuser", "password123")
 
@@ -97,7 +105,7 @@ class TestAuthorizationPipeline(unittest.TestCase):
         self.assertEqual(result.user, mock_user)
         self.assertFalse(result.is_new_user)
 
-        self.mock_user_db.authenticate_user.assert_called_once_with(
+        self.mock_user_db.authenticate_polyhedron_user.assert_called_once_with(
             "testuser", "password123"
         )
 
@@ -109,9 +117,9 @@ class TestAuthorizationPipeline(unittest.TestCase):
         mock_config.min_password_length = 3
 
         # Mock user not found
-        self.mock_user_db.authenticate_user.return_value = (
+        self.mock_user_db.authenticate_polyhedron_user.return_value = (
             False,
-            "User not found",
+            "polyhedron_user not found",
             None,
         )
 
@@ -119,8 +127,12 @@ class TestAuthorizationPipeline(unittest.TestCase):
         mock_user = Mock()
         mock_user.login = "newuser"
         mock_user.update_login_info = Mock()
-        self.mock_user_db.create_user.return_value = (True, "User created", mock_user)
-        self.mock_user_db.update_user_login_info.return_value = True
+        self.mock_user_db.create_polyhedron_user.return_value = (
+            True,
+            "user created",
+            mock_user,
+        )
+        self.mock_user_db.update_polyhedron_user_login_info.return_value = True
 
         result = self.pipeline.authenticate_or_register("newuser", "password123")
 
@@ -129,12 +141,16 @@ class TestAuthorizationPipeline(unittest.TestCase):
         self.assertEqual(result.user, mock_user)
         self.assertTrue(result.is_new_user)
 
-        self.mock_user_db.authenticate_user.assert_called_once_with(
+        self.mock_user_db.authenticate_polyhedron_user.assert_called_once_with(
             "newuser", "password123"
         )
-        self.mock_user_db.create_user.assert_called_once_with("newuser", "password123")
+        self.mock_user_db.create_polyhedron_user.assert_called_once_with(
+            "newuser", "password123"
+        )
         mock_user.update_login_info.assert_called_once()
-        self.mock_user_db.update_user_login_info.assert_called_once_with(mock_user)
+        self.mock_user_db.update_polyhedron_user_login_info.assert_called_once_with(
+            mock_user
+        )
 
     @patch("server.auth_pipeline.auth_config")
     def test_authenticate_wrong_password(self, mock_config):
@@ -144,7 +160,7 @@ class TestAuthorizationPipeline(unittest.TestCase):
         mock_config.min_password_length = 3
 
         # Mock authentication failure
-        self.mock_user_db.authenticate_user.return_value = (
+        self.mock_user_db.authenticate_polyhedron_user.return_value = (
             False,
             "Invalid password",
             None,
@@ -227,7 +243,9 @@ class TestAuthorizationPipeline(unittest.TestCase):
         mock_config.min_password_length = 3
 
         # Mock exception in authentication
-        self.mock_user_db.authenticate_user.side_effect = Exception("Database error")
+        self.mock_user_db.authenticate_polyhedron_user.side_effect = Exception(
+            "Database error"
+        )
 
         result = self.pipeline.authenticate_or_register("testuser", "password123")
 
@@ -252,8 +270,12 @@ class TestAuthorizationPipeline(unittest.TestCase):
 
     def test_get_user_stats_success(self):
         """Test getting user statistics."""
-        self.mock_user_db.get_user_count.return_value = 42
-        self.mock_user_db.get_recent_users.return_value = [Mock(), Mock(), Mock()]
+        self.mock_user_db.get_polyhedron_user_count.return_value = 42
+        self.mock_user_db.get_recent_polyhedron_users.return_value = [
+            Mock(),
+            Mock(),
+            Mock(),
+        ]
 
         stats = self.pipeline.get_user_stats()
 
@@ -262,7 +284,9 @@ class TestAuthorizationPipeline(unittest.TestCase):
 
     def test_get_user_stats_exception(self):
         """Test getting user statistics with exception."""
-        self.mock_user_db.get_user_count.side_effect = Exception("Database error")
+        self.mock_user_db.get_polyhedron_user_count.side_effect = Exception(
+            "Database error"
+        )
 
         stats = self.pipeline.get_user_stats()
 
@@ -277,14 +301,14 @@ class TestAuthorizationPipeline(unittest.TestCase):
     def test_register_new_user_failure(self):
         """Test registration failure."""
         # Mock user not found
-        self.mock_user_db.authenticate_user.return_value = (
+        self.mock_user_db.authenticate_polyhedron_user.return_value = (
             False,
-            "User not found",
+            "polyhedron_user not found",
             None,
         )
 
         # Mock registration failure
-        self.mock_user_db.create_user.return_value = (
+        self.mock_user_db.create_polyhedron_user.return_value = (
             False,
             "Registration failed",
             None,
@@ -306,14 +330,16 @@ class TestAuthorizationPipeline(unittest.TestCase):
     def test_register_new_user_exception(self):
         """Test registration exception handling."""
         # Mock user not found
-        self.mock_user_db.authenticate_user.return_value = (
+        self.mock_user_db.authenticate_polyhedron_user.return_value = (
             False,
-            "User not found",
+            "polyhedron_user not found",
             None,
         )
 
         # Mock registration exception
-        self.mock_user_db.create_user.side_effect = Exception("Database error")
+        self.mock_user_db.create_polyhedron_user.side_effect = Exception(
+            "Database error"
+        )
 
         with patch("server.auth_pipeline.auth_config") as mock_config:
             mock_config.max_login_length = 50
@@ -329,7 +355,7 @@ class TestAuthorizationPipeline(unittest.TestCase):
 
 
 class TestAuthConfigIntegration(unittest.TestCase):
-    """Integration tests with AuthConfig."""
+    """Integration tests with auth_config."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -350,7 +376,7 @@ class TestAuthConfigIntegration(unittest.TestCase):
         self.temp_config.close()
 
         # Create config instance
-        self.config = AuthConfig(self.temp_config.name)
+        self.config = auth_config(self.temp_config.name)
 
     def tearDown(self):
         """Clean up test fixtures."""

@@ -3,55 +3,55 @@ Exceptions for the enter game world pipeline handlers.
 """
 
 
-class PipelineException(Exception):
+class pipeline_exception(Exception):
     """Base exception for pipeline handler errors."""
 
     pass
 
 
-class LoginException(PipelineException):
+class login_exception(pipeline_exception):
     """Exception raised when login packet handling fails."""
 
     pass
 
 
-class AuthenticationException(PipelineException):
+class authentication_exception(pipeline_exception):
     """Exception raised when authentication fails."""
 
     pass
 
 
-class CharacterDataException(PipelineException):
+class character_data_exception(pipeline_exception):
     """Exception raised when character data handling fails."""
 
     pass
 
 
-class CharacterScreenException(PipelineException):
+class character_screen_exception(pipeline_exception):
     """Exception raised when character screen interaction fails."""
 
     pass
 
 
-class CharacterCreationException(PipelineException):
+class character_creation_exception(pipeline_exception):
     """Exception raised when character creation fails."""
 
     pass
 
 
-class EnterGameException(PipelineException):
+class enter_game_exception(pipeline_exception):
     """Exception raised when entering game fails."""
 
     pass
 
 
-class ServerCredentialsException(PipelineException):
+class server_credentials_exception(pipeline_exception):
     """Exception raised when sending server credentials fails."""
 
     pass
 
 
-class StateTransitionException(PipelineException):
+class state_transition_exception(pipeline_exception):
     """Exception raised when client state transition fails."""
 
     pass

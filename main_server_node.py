@@ -5,8 +5,8 @@ import threading
 import traceback
 from server.config import load_config
 from server.logger import create_logger
-from server.player_manager import PlayerManager
-from server.client_pre_ingame_handler import ClientPreIngameHandler
+from server.player_manager import player_manager
+from server.client_pre_ingame_handler import client_pre_ingame_handler
 
 
 @gdclass
@@ -22,16 +22,21 @@ class main_server_node(Node3D):
 			self.config = load_config()
 
 			self.logger = create_logger()
-			self.player_manager = PlayerManager()
-			self.client_handler = ClientPreIngameHandler(
+			self.player_manager = player_manager()
+			self.client_handler = client_pre_ingame_handler(
 				self.logger, self.player_manager, self
 			)
 
 			self.logger.info("Server node initialized")
 			self.logger.debug(f"Loaded configuration: {self.config}")
 		except Exception as e:
-			print(f"Error in __init__: {str(e)}")
-			print(traceback.format_exc())
+			# Fallback to basic logging if logger creation fails
+			import logging
+
+			logging.basicConfig(level=logging.ERROR)
+			logger = logging.getLogger("main_server_node")
+			logger.error(f"Error in __init__: {str(e)}")
+			logger.error(f"Traceback: {traceback.format_exc()}")
 
 	def _ready(self) -> None:
 		try:

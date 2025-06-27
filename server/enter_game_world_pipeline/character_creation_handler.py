@@ -1,12 +1,12 @@
-from server.logger import ServerLogger
-from data_models.mongodb_models import CharacterDatabase
-from .exceptions import CharacterCreationException
+from server.logger import server_logger
+from data_models.mongodb_models import character_database
+from .exceptions import character_creation_exception
 
 
-class CharacterCreationHandler:
+class character_creation_handler:
     """Handles character creation from packet data."""
 
-    def __init__(self, character_db: CharacterDatabase):
+    def __init__(self, character_db: character_database):
         self.character_db = character_db
 
     def create_character_from_packet(
@@ -15,20 +15,20 @@ class CharacterCreationHandler:
         user_id: str,
         character_slot_index: int,
         player_index: int,
-        logger: ServerLogger,
+        logger: server_logger,
     ) -> None:
         """
         Create a new character from the received packet data.
 
         Args:
-            data: The packet data bytes
-            user_id: The user's ID
-            character_slot_index: The character slot index (0-3)
-            player_index: The player index for logging
-            logger: The server logger instance
+                data: The packet data bytes
+                user_id: The user's ID
+                character_slot_index: The character slot index (0-3)
+                player_index: The player index for logging
+                logger: The server logger instance
 
         Raises:
-            CharacterCreationException: If character creation fails
+                character_creation_exception: If character creation fails
         """
         try:
             # Decode character name from packet
@@ -36,7 +36,7 @@ class CharacterCreationHandler:
 
             # Check if name is valid (not already taken)
             if self.character_db.character_name_exists(name):
-                raise CharacterCreationException(
+                raise character_creation_exception(
                     f"Player 0x{player_index:04X} tried to create character "
                     f"with existing name: {name}"
                 )
@@ -83,7 +83,7 @@ class CharacterCreationHandler:
             character_id = self.character_db.create_character(character_data)
 
             if not character_id:
-                raise CharacterCreationException(
+                raise character_creation_exception(
                     f"Player 0x{player_index:04X} failed to save character '{name}' to database"
                 )
 
@@ -93,10 +93,10 @@ class CharacterCreationHandler:
             )
             logger.info(msg)
 
-        except CharacterCreationException:
+        except character_creation_exception:
             raise
         except Exception as e:
-            raise CharacterCreationException(
+            raise character_creation_exception(
                 f"Error creating character for player 0x{player_index:04X}: {str(e)}"
             )
 
@@ -105,10 +105,10 @@ class CharacterCreationHandler:
         Decode character name from packet data using the game's encoding scheme.
 
         Args:
-            data: The packet data bytes
+                data: The packet data bytes
 
         Returns:
-            str: The decoded character name
+                str: The decoded character name
         """
         length = data[0] - 20 - 5
         name_check_bytes = data[20:]

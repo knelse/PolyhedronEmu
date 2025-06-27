@@ -4,4 +4,3 @@
 
 [node name="main_server_node" type="Node3D"]
 script = ExtResource("1_vupj1")
-SERVER_PORT = 25860

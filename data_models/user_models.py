@@ -1,5 +1,5 @@
 """
-User authentication models for MongoDB storage.
+user authentication models for MongoDB storage.
 """
 
 import hashlib
@@ -11,12 +11,12 @@ from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
 
-from server.auth_config import auth_config
+from server.auth_config import default_auth_config as auth_config
 
 
 @dataclass
-class User:
-    """User model for authentication."""
+class polyhedron_user:
+    """polyhedron_user model for authentication."""
 
     login: str
     password_hash: str
@@ -35,8 +35,8 @@ class User:
             raise ValueError(f"Login too long (max {auth_config.max_login_length})")
 
     @classmethod
-    def create_user(cls, login: str, password: str) -> "User":
-        """Create a new user with hashed password."""
+    def create_polyhedron_user(cls, login: str, password: str) -> "polyhedron_user":
+        """Create a new polyhedron_user with hashed password."""
         if len(password) < auth_config.min_password_length:
             raise ValueError(
                 f"Password too short (min {auth_config.min_password_length})"
@@ -86,8 +86,8 @@ class User:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "User":
-        """Create user from dictionary loaded from MongoDB."""
+    def from_dict(cls, data: Dict[str, Any]) -> "polyhedron_user":
+        """Create polyhedron_user from dictionary loaded from MongoDB."""
         return cls(
             login=data["login"],
             password_hash=data["password_hash"],
@@ -98,7 +98,7 @@ class User:
         )
 
 
-class UserDatabase:
+class polyhedron_user_database:
     """Database manager for user authentication."""
 
     def __init__(
@@ -138,40 +138,42 @@ class UserDatabase:
         """Normalize login based on case sensitivity setting."""
         return login if auth_config.case_sensitive_login else login.lower()
 
-    def create_user(
+    def create_polyhedron_user(
         self, login: str, password: str
-    ) -> tuple[bool, str, Optional[User]]:
+    ) -> tuple[bool, str, Optional["polyhedron_user"]]:
         """
-        Create a new user.
+        Create a new polyhedron_user.
 
         Returns:
-            tuple[bool, str, Optional[User]]: (success, message, user)
+            tuple[bool, str, Optional[polyhedron_user]]: (success, message, polyhedron_user)
         """
         try:
             normalized_login = self.normalize_login(login)
 
-            # Check if user already exists
-            if self.get_user(normalized_login) is not None:
-                return False, "User already exists", None
+            # Check if polyhedron_user already exists
+            if self.get_polyhedron_user(normalized_login) is not None:
+                return False, "polyhedron_user already exists", None
 
-            user = User.create_user(normalized_login, password)
+            polyhedron_user_obj = polyhedron_user.create_polyhedron_user(
+                normalized_login, password
+            )
 
             # Insert into database
-            result = self.users.insert_one(user.to_dict())
+            result = self.users.insert_one(polyhedron_user_obj.to_dict())
             if result.inserted_id:
-                return True, "User created successfully", user
+                return True, "polyhedron_user created successfully", polyhedron_user_obj
             else:
-                return False, "Failed to create user", None
+                return False, "Failed to create polyhedron_user", None
 
         except DuplicateKeyError:
-            return False, "User already exists", None
+            return False, "polyhedron_user already exists", None
         except ValueError as e:
             return False, str(e), None
         except Exception as e:
             return False, f"Database error: {e}", None
 
-    def get_user(self, login: str) -> Optional[User]:
-        """Get user by login."""
+    def get_polyhedron_user(self, login: str) -> Optional["polyhedron_user"]:
+        """Get polyhedron_user by login."""
         try:
             normalized_login = self.normalize_login(login)
 
@@ -186,48 +188,50 @@ class UserDatabase:
                 )
 
             if user_data:
-                return User.from_dict(user_data)
+                return polyhedron_user.from_dict(user_data)
             return None
 
         except Exception as e:
             print(f"Error getting user {login}: {e}")
             return None
 
-    def authenticate_user(
+    def authenticate_polyhedron_user(
         self, login: str, password: str
-    ) -> tuple[bool, str, Optional[User]]:
+    ) -> tuple[bool, str, Optional["polyhedron_user"]]:
         """
-        Authenticate a user with login and password.
+        Authenticate a polyhedron_user with login and password.
 
         Returns:
-            tuple[bool, str, Optional[User]]: (success, message, user)
+            tuple[bool, str, Optional[polyhedron_user]]: (success, message, polyhedron_user)
         """
         try:
-            user = self.get_user(login)
-            if user is None:
-                return False, "User not found", None
+            polyhedron_user_obj = self.get_polyhedron_user(login)
+            if polyhedron_user_obj is None:
+                return False, "polyhedron_user not found", None
 
-            if not user.verify_password(password):
+            if not polyhedron_user_obj.verify_password(password):
                 return False, "Invalid password", None
 
             # Update login info
-            user.update_login_info()
-            self.update_user_login_info(user)
+            polyhedron_user_obj.update_login_info()
+            self.update_polyhedron_user_login_info(polyhedron_user_obj)
 
-            return True, "Authentication successful", user
+            return True, "Authentication successful", polyhedron_user_obj
 
         except Exception as e:
             return False, f"Authentication error: {e}", None
 
-    def update_user_login_info(self, user: User) -> bool:
-        """Update user's login information in database."""
+    def update_polyhedron_user_login_info(
+        self, polyhedron_user_obj: "polyhedron_user"
+    ) -> bool:
+        """Update polyhedron_user's login information in database."""
         try:
             result = self.users.update_one(
-                {"login": user.login},
+                {"login": polyhedron_user_obj.login},
                 {
                     "$set": {
-                        "last_login": user.last_login,
-                        "login_count": user.login_count,
+                        "last_login": polyhedron_user_obj.last_login,
+                        "login_count": polyhedron_user_obj.login_count,
                     }
                 },
             )
@@ -236,8 +240,8 @@ class UserDatabase:
             print(f"Error updating user login info: {e}")
             return False
 
-    def deactivate_user(self, login: str) -> bool:
-        """Deactivate a user (soft delete)."""
+    def deactivate_polyhedron_user(self, login: str) -> bool:
+        """Deactivate a polyhedron_user (soft delete)."""
         try:
             normalized_login = self.normalize_login(login)
             result = self.users.update_one(
@@ -248,22 +252,22 @@ class UserDatabase:
             print(f"Error deactivating user {login}: {e}")
             return False
 
-    def get_user_count(self) -> int:
-        """Get total number of active users."""
+    def get_polyhedron_user_count(self) -> int:
+        """Get total number of active polyhedron_users."""
         try:
             return self.users.count_documents({"is_active": True})
         except Exception as e:
             print(f"Error getting user count: {e}")
             return 0
 
-    def get_recent_users(self, limit: int = 10) -> List[User]:
+    def get_recent_polyhedron_users(self, limit: int = 10) -> List["polyhedron_user"]:
         """Get recently created users."""
         try:
             cursor = (
                 self.users.find({"is_active": True}).sort("created_at", -1).limit(limit)
             )
 
-            return [User.from_dict(doc) for doc in cursor]
+            return [polyhedron_user.from_dict(doc) for doc in cursor]
         except Exception as e:
             print(f"Error getting recent users: {e}")
             return []

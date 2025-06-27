@@ -2,11 +2,11 @@ import sys
 import unittest
 from unittest.mock import MagicMock, patch
 from server.enter_game_world_pipeline.authentication_handler import (
-    AuthenticationHandler,
+    authentication_handler,
 )
-from server.enter_game_world_pipeline.exceptions import AuthenticationException
-from server.logger import ServerLogger
-from server.client_state_manager import ClientStateManager
+from server.enter_game_world_pipeline.exceptions import authentication_exception
+from server.logger import server_logger
+from server.client_state_manager import client_state_manager
 
 sys.modules["py4godot"] = MagicMock()
 sys.modules["py4godot.classes"] = MagicMock()
@@ -30,6 +30,11 @@ class MockAuthResult:
         if success:
             self.user = MockUser(user_login, login_count)
 
+    @property
+    def is_new_polyhedron_user(self) -> bool:
+        """Alias for is_new_user to maintain compatibility."""
+        return self.is_new_user
+
 
 class MockUser:
     """Mock user object."""
@@ -40,12 +45,12 @@ class MockUser:
 
 
 class TestAuthenticationHandler(unittest.TestCase):
-    """Test AuthenticationHandler functionality."""
+    """Test authentication_handler functionality."""
 
     def setUp(self):
         """Set up test fixtures."""
-        self.mock_logger = MagicMock(spec=ServerLogger)
-        self.mock_state_manager = MagicMock(spec=ClientStateManager)
+        self.mock_logger = MagicMock(spec=server_logger)
+        self.mock_state_manager = MagicMock(spec=client_state_manager)
         self.mock_socket = MagicMock()
         self.player_index = 0x5000
         self.login_packet = b"test_login_packet"
@@ -71,7 +76,7 @@ class TestAuthenticationHandler(unittest.TestCase):
                 ) as mock_auth:
                     mock_auth.return_value = auth_result
                     # Should not raise an exception
-                    AuthenticationHandler.process_authentication(
+                    authentication_handler.process_authentication(
                         self.login_packet,
                         self.player_index,
                         self.mock_socket,
@@ -105,7 +110,7 @@ class TestAuthenticationHandler(unittest.TestCase):
                 ) as mock_auth:
                     mock_auth.return_value = auth_result
                     # Should not raise an exception
-                    AuthenticationHandler.process_authentication(
+                    authentication_handler.process_authentication(
                         self.login_packet,
                         self.player_index,
                         self.mock_socket,
@@ -144,11 +149,11 @@ class TestAuthenticationHandler(unittest.TestCase):
                         mock_failure.return_value = b"\x01\x02\x03\x04"
                         with patch(
                             "server.enter_game_world_pipeline.authentication_handler."
-                            "ServerSocketUtils.send_packet_with_logging"
+                            "server_socket_utils.send_packet_with_logging"
                         ) as mock_send:
                             mock_send.return_value = True
-                            with self.assertRaises(AuthenticationException) as cm:
-                                AuthenticationHandler.process_authentication(
+                            with self.assertRaises(authentication_exception) as cm:
+                                authentication_handler.process_authentication(
                                     self.login_packet,
                                     self.player_index,
                                     self.mock_socket,
@@ -166,8 +171,8 @@ class TestAuthenticationHandler(unittest.TestCase):
             "get_encrypted_login_and_password"
         ) as mock_encrypt:
             mock_encrypt.side_effect = Exception("Test exception")
-            with self.assertRaises(AuthenticationException) as cm:
-                AuthenticationHandler.process_authentication(
+            with self.assertRaises(authentication_exception) as cm:
+                authentication_handler.process_authentication(
                     self.login_packet,
                     self.player_index,
                     self.mock_socket,

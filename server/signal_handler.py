@@ -10,7 +10,7 @@ import time
 from typing import Callable
 
 
-class SignalHandler:
+class signal_handler:
     """
     Handles system signals for graceful server shutdown.
     Ensures all threads are properly terminated when receiving interrupt signals.

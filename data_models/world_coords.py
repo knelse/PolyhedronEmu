@@ -6,7 +6,7 @@ import math
 from typing import List
 
 
-class WorldCoords:
+class world_coords:
     """Represents world coordinates with X, Y, Z position and angle."""
 
     def __init__(
@@ -81,7 +81,7 @@ class WorldCoords:
 
     def __str__(self) -> str:
         """String representation of world coordinates."""
-        return f"WorldCoords(x={self.x}, y={self.y}, z={self.z}, angle={self.angle})"
+        return f"world_coords(x={self.x}, y={self.y}, z={self.z}, angle={self.angle})"
 
     def __repr__(self) -> str:
         """Detailed string representation of world coordinates."""
