@@ -48,6 +48,17 @@ class server_socket_utils:
             msg = f"Player 0x{player_index:04X} broken pipe during {error_context}"
             logger.info(msg)
             return False
+        except OSError as e:
+            if e.errno == 10038:  # WSAENOTSOCK - socket operation on non-socket
+                msg = (
+                    f"Socket already closed sending {error_context} "
+                    f"to player 0x{player_index:04X}"
+                )
+                logger.warning(msg)
+            else:
+                msg = f"Socket error sending {error_context} to player 0x{player_index:04X}"
+                logger.log_exception(msg, e)
+            return False
         except socket.error as e:
             msg = f"Socket error sending {error_context} to player 0x{player_index:04X}"
             logger.log_exception(msg, e)
@@ -102,11 +113,16 @@ class server_socket_utils:
             msg = f"Player 0x{player_index:04X} connection reset during {error_context}"
             logger.info(msg)
             return None
-        except socket.error as e:
-            msg = (
-                f"Socket error during {error_context} from player 0x{player_index:04X}"
-            )
-            logger.log_exception(msg, e)
+        except OSError as e:
+            if e.errno == 10038:  # WSAENOTSOCK - socket operation on non-socket
+                msg = (
+                    f"Socket already closed during {error_context} "
+                    f"from player 0x{player_index:04X}"
+                )
+                logger.warning(msg)
+            else:
+                msg = f"Socket error during {error_context} from player 0x{player_index:04X}"
+                logger.log_exception(msg, e)
             return None
         except Exception as e:
             msg = f"Unexpected error during {error_context} from player 0x{player_index:04X}"

@@ -1,15 +1,14 @@
-import sys
 import socket
 import unittest
 import threading
 from unittest.mock import MagicMock, patch
+
+# Import mocks first to set up py4godot mocking  # noqa: E402
+import tests.mocks  # noqa: F401
+
 from server.client_pre_ingame_handler import client_pre_ingame_handler
 from server.logger import server_logger
 from server.player_manager import player_manager
-
-sys.modules["py4godot"] = MagicMock()
-sys.modules["py4godot.classes"] = MagicMock()
-sys.modules["py4godot.classes.Node3D"] = MagicMock()
 
 
 class MockNode3D:

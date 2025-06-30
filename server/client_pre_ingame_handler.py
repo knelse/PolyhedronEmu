@@ -2,7 +2,6 @@ import socket
 import threading
 from typing import Callable
 from server.logger import server_logger
-from server.player.player_ingame_handler import player_ingame_handler
 from server.player_manager import player_manager
 from server.client_state_manager import client_state_manager, client_state
 
@@ -14,15 +13,13 @@ from server.enter_game_world_pipeline import (
     server_credentials_handler,
 )
 from data_models.mongodb_models import character_database
+from py4godot.utils.smart_cast import register_cast_function
+from py4godot.classes.Script import Script
 
-try:
-    from py4godot.classes.Node3D import Node3D
-    from py4godot.classes.ResourceLoader import ResourceLoader
-    from py4godot.classes.PackedScene import PackedScene
-except ImportError:
-    Node3D = object
-    ResourceLoader = object
-    PackedScene = object
+from py4godot.classes.Node3D import Node3D
+from py4godot.classes.ResourceLoader import ResourceLoader
+
+register_cast_function("PyScriptExtension", Script.cast)
 
 
 class client_pre_ingame_handler:
@@ -176,6 +173,10 @@ class client_pre_ingame_handler:
                 is_running,
             )
 
+            # Socket ownership has been transferred to player_ingame_handler
+            # Don't close it in cleanup
+            client_socket = None
+
         except Exception as e:
             msg = f"Error in client thread for {address}"
             if player_index is not None:
@@ -205,23 +206,16 @@ class client_pre_ingame_handler:
             msg = f"Creating Player instance for player 0x{player_index:04X}"
             self.logger.info(msg)
 
-            # Load the Player scene
             resource_loader = ResourceLoader.instance()
             player_scene = resource_loader.load("res://Player.tscn")
-
-            if not player_scene:
-                raise RuntimeError("Failed to load Player.tscn")
-
             player_instance_scene = player_scene.instantiate()
+            player_ingame_handler = resource_loader.load(
+                "res://server/player/player_ingame_handler.py"
+            )
 
-            self.parent_node.call_deferred("add_child", player_instance_scene)
             player_instance_scene.set_script(player_ingame_handler)
             player_instance = player_instance_scene.get_pyscript()
 
-            if not player_instance:
-                raise RuntimeError("Failed to instantiate Player scene")
-
-            # Assign fields directly to the player instance
             player_instance.client_socket = client_socket
             player_instance.player_index = player_index
             player_instance.logger = self.logger
@@ -229,6 +223,8 @@ class client_pre_ingame_handler:
             player_instance.user_id = user_id
             player_instance.player_manager = self.player_manager
             player_instance.is_running = is_running
+
+            self.parent_node.call_deferred("add_child", player_instance_scene)
 
             with self._threads_lock:
                 thread_id = threading.current_thread().ident
@@ -247,20 +243,25 @@ class client_pre_ingame_handler:
                     pass
             raise
 
-    def _cleanup_client(self, client_socket: socket.socket, player_index: int) -> None:
+    def _cleanup_client(
+        self,
+        client_socket: socket.socket | None,
+        player_index: int,
+    ) -> None:
         """
         Clean up all resources associated with a client.
         This runs on the client's dedicated thread.
 
         Args:
-                        client_socket: The client's socket connection
-                        player_index: The player's index to clean up
+            client_socket: The client's socket connection (None if ownership transferred)
+            player_index: The player's index to clean up
         """
-        try:
-            # Close the socket
-            client_socket.close()
-        except Exception:
-            pass
+        if client_socket is not None:
+            try:
+                # Close the socket only if we still own it
+                client_socket.close()
+            except Exception:
+                pass
 
         # Clean up player manager
         if player_index is not None:

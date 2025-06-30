@@ -5,7 +5,7 @@ from py4godot.classes import gdclass
 from py4godot.classes.Node3D import Node3D
 from server.client_state_manager import client_state_manager
 from server.logger import server_logger
-from server.player_manager import player_manager
+from server.player_manager import player_manager as player_manager_class
 from server.utils.socket_utils import server_socket_utils
 
 
@@ -17,11 +17,11 @@ class player_ingame_handler(Node3D):
     """
 
     client_socket: socket.socket | None
-    player_index: int
+    player_index: int | None
     logger: server_logger | None
-    state_manager: client_state_manager
+    state_manager: client_state_manager | None
     user_id: str | None
-    player_manager: player_manager | None
+    player_manager: player_manager_class | None
     is_running: Callable[[], bool] | None
 
     def __init__(self):
@@ -38,7 +38,12 @@ class player_ingame_handler(Node3D):
 
     def start_ingame_handling(self) -> None:
         """Start the ingame communication handling in a separate thread."""
-        if self.client_socket is None or self.is_running is None:
+        if (
+            self.client_socket is None
+            or self.is_running is None
+            or self.player_index is None
+            or self.logger is None
+        ):
             raise RuntimeError("Player not properly initialized")
 
         self.client_thread = threading.Thread(
@@ -67,9 +72,23 @@ class player_ingame_handler(Node3D):
         try:
             self.client_socket.send(data)
             return True
+        except OSError as e:
+            if e.errno == 10038:  # WSAENOTSOCK - socket operation on non-socket
+                player_idx = self.player_index or 0
+                msg = f"Socket already closed for player 0x{player_idx:04X}"
+                if self.logger:
+                    self.logger.warning(msg)
+            else:
+                player_idx = self.player_index or 0
+                msg = f"Socket error sending data to player 0x{player_idx:04X}"
+                if self.logger:
+                    self.logger.log_exception(msg, e)
+            return False
         except Exception as e:
-            msg = f"Error sending data to player 0x{self.player_index:04X}"
-            self.logger.log_exception(msg, e)
+            player_idx = self.player_index or 0
+            msg = f"Error sending data to player 0x{player_idx:04X}"
+            if self.logger:
+                self.logger.log_exception(msg, e)
             return False
 
     def _handle_ingame_communication(self) -> None:
@@ -78,8 +97,10 @@ class player_ingame_handler(Node3D):
         This runs on a dedicated thread.
         """
         try:
-            msg = f"Started ingame communication loop for player 0x{self.player_index:04X}"
-            self.logger.debug(msg)
+            player_idx = self.player_index or 0
+            msg = f"Started ingame communication loop for player 0x{player_idx:04X}"
+            if self.logger:
+                self.logger.debug(msg)
 
             while self.is_running():
                 try:
@@ -97,40 +118,54 @@ class player_ingame_handler(Node3D):
 
                     # TODO: Handle ingame packets here
                     # For now, just log the received data
+                    player_idx = self.player_index or 0
                     msg = (
-                        f"Player 0x{self.player_index:04X} sent ingame packet: "
+                        f"Player 0x{player_idx:04X} sent ingame packet: "
                         f"{data.hex().upper()}"
                     )
-                    self.logger.debug(msg)
+                    if self.logger:
+                        self.logger.debug(msg)
 
                 except socket.timeout:
                     continue
                 except ConnectionResetError:
-                    msg = f"Player 0x{self.player_index:04X} connection reset"
-                    self.logger.info(msg)
+                    player_idx = self.player_index or 0
+                    msg = f"Player 0x{player_idx:04X} connection reset"
+                    if self.logger:
+                        self.logger.info(msg)
                     break
                 except Exception as e:
-                    msg = f"Error in ingame communication with player 0x{self.player_index:04X}"
-                    self.logger.log_exception(msg, e)
+                    player_idx = self.player_index or 0
+                    msg = (
+                        f"Error in ingame communication with player 0x{player_idx:04X}"
+                    )
+                    if self.logger:
+                        self.logger.log_exception(msg, e)
                     break
 
         except Exception as e:
-            msg = f"Error in ingame communication thread for player 0x{self.player_index:04X}"
-            self.logger.log_exception(msg, e)
+            player_idx = self.player_index or 0
+            msg = f"Error in ingame communication thread for player 0x{player_idx:04X}"
+            if self.logger:
+                self.logger.log_exception(msg, e)
         finally:
             self._cleanup_player()
 
     def stop_handling(self) -> None:
         """Stop the ingame handling and clean up resources."""
         if self.client_thread and self.client_thread.is_alive():
-            msg = f"Stopping ingame handling for player 0x{self.player_index:04X}"
-            self.logger.info(msg)
+            player_idx = self.player_index or 0
+            msg = f"Stopping ingame handling for player 0x{player_idx:04X}"
+            if self.logger:
+                self.logger.info(msg)
 
             self.client_thread.join(timeout=5.0)
 
             if self.client_thread.is_alive():
-                msg = f"Ingame thread for player 0x{self.player_index:04X} did not stop gracefully"
-                self.logger.warning(msg)
+                player_idx = self.player_index or 0
+                msg = f"Ingame thread for player 0x{player_idx:04X} did not stop gracefully"
+                if self.logger:
+                    self.logger.warning(msg)
 
     def _cleanup_player(self) -> None:
         """
@@ -144,6 +179,7 @@ class player_ingame_handler(Node3D):
         try:
             if self.client_socket:
                 self.client_socket.close()
+                self.client_socket = None
         except Exception:
             pass
 
@@ -155,7 +191,8 @@ class player_ingame_handler(Node3D):
 
         if self.player_index is not None:
             msg = f"Cleaned up ingame resources for player 0x{self.player_index:04X}"
-            self.logger.debug(msg)
+            if self.logger:
+                self.logger.debug(msg)
 
     def _ready(self) -> None:
         """Called when the node is ready. Handle character sheet setup and start ingame handling."""
