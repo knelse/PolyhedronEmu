@@ -442,7 +442,7 @@ class ci_monitor:
                 "-m",
                 "flake8",
                 ".",
-                "--exclude=addons",
+                "--exclude=addons, .builds",
                 "--max-line-length=100",
             ]
             result = subprocess.run(
