@@ -63,3 +63,70 @@ If export fails:
 2. Check export preset configuration in Godot editor
 3. Verify all resources are properly imported
 4. Check console output for specific error messages
+
+---
+
+# Руководство по локальной сборке PolyhedronEmu (Русский)
+
+## Быстрый старт
+
+1. **Настройка среды сборки:**
+   ```powershell
+   .\build_local.ps1 -Setup
+   ```
+
+2. **Сборка проекта:**
+   ```powershell
+   .\build_local.ps1 -Build
+   ```
+
+3. **Запуск собранного исполняемого файла:**
+   ```powershell
+   .\build_local.ps1 -Run
+   ```
+
+## Ручная настройка (Альтернатива)
+
+### 1. Скачать Godot 4.4.1
+
+Скачайте исполняемый файл Windows 64-bit:
+- **URL**: https://github.com/godotengine/godot/releases/tag/4.4.1-stable
+- **Файл**: `Godot_v4.4.1-stable_win64.exe`
+- **Сохранить в**: `tools/Godot_v4.4.1-stable_win64.exe`
+
+### 2. Скачать export templates
+
+Скачайте и установите export templates:
+- **URL**: https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
+- **Извлечь в**: `%APPDATA%\Godot\export_templates\4.4.1-stable\`
+
+### 3. Команды ручной сборки
+
+```powershell
+# Импорт ресурсов
+.\tools\Godot_v4.4.1-stable_win64.exe --headless --import
+
+# Экспорт проекта
+.\tools\Godot_v4.4.1-stable_win64.exe --headless --export-release "Win64" ".builds\PolyhedronEmu_win64.exe"
+```
+
+## Устранение неполадок
+
+### Отсутствующие export templates
+Если вы получаете ошибки "Export template not found":
+1. Скачайте export templates со страницы релизов Godot
+2. Извлеките в `%APPDATA%\Godot\export_templates\4.4.1-stable\`
+3. Убедитесь, что папка содержит `windows_debug.exe` и `windows_release.exe`
+
+### Проблемы с py4godot
+Если Python скрипты не работают:
+1. Проверьте, что `pythonscript.dll` существует в `addons/py4godot/cpython-3.12.4-windows64/python/`
+2. Проверьте, что `python.gdextension` правильно настроен
+3. Перезапустите редактор Godot после изменений py4godot
+
+### Неудачи сборки
+Если экспорт не удается:
+1. Попробуйте сначала импортировать ресурсы: `--headless --import`
+2. Проверьте конфигурацию пресета экспорта в редакторе Godot
+3. Убедитесь, что все ресурсы правильно импортированы
+4. Проверьте вывод консоли на предмет конкретных сообщений об ошибках
