@@ -9,6 +9,12 @@ Sphere (old Russian MMO) Emulator. Work in progress.
 
 ## Development
 
+### Prerequisites
+
+- **MongoDB**: Required for database operations
+  - Install MongoDB Community Server from https://www.mongodb.com/try/download/community
+  - Ensure MongoDB service is running before starting the server
+
 ### Running Tests
 ```bash
 python -m pytest tests/ -v --tb=no
@@ -34,6 +40,12 @@ See [Attribution.txt](Attribution.txt) for third-party attributions.
 Эмулятор Сферы. В разработке.
 
 ## Разработка
+
+### Требования
+
+- **MongoDB**: Необходим для работы с базой данных
+  - Установите MongoDB Community Server с https://www.mongodb.com/try/download/community
+  - Убедитесь, что служба MongoDB запущена перед запуском сервера
 
 ### Запуск тестов
 ```bash

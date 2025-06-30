@@ -1,6 +1,12 @@
 # PolyhedronEmu Local Build Guide
 
 
+## Prerequisites
+
+- **MongoDB**: Required for database operations
+  - Install MongoDB Community Server from https://www.mongodb.com/try/download/community
+  - Ensure MongoDB service is running before starting the server
+
 ## Quick Start
 
 1. **Set up build environment:**
@@ -67,6 +73,12 @@ If export fails:
 ---
 
 # Руководство по локальной сборке PolyhedronEmu (Русский)
+
+## Требования
+
+- **MongoDB**: Необходим для работы с базой данных
+  - Установите MongoDB Community Server с https://www.mongodb.com/try/download/community
+  - Убедитесь, что служба MongoDB запущена перед запуском сервера
 
 ## Быстрый старт
 
