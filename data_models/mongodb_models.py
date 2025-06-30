@@ -33,8 +33,8 @@ class client_character_mongo:
         self.degree_minus_one: int = 0
 
         # Stats - MP
-        self.max_mp: int = 0
-        self.current_mp: int = 0
+        self.max_mp: int = 100
+        self.current_mp: int = 100
 
         # Base and current stats
         self.base_strength: int = 0
@@ -96,8 +96,8 @@ class client_character_mongo:
         self.angle: float = 0.0
 
         # Health and defense
-        self.current_hp: int = 0
-        self.max_hp: int = 0
+        self.current_hp: int = 100
+        self.max_hp: int = 100
         self.p_def: int = 0
         self.m_def: int = 0
 
@@ -726,10 +726,9 @@ class character_database:
             character.hair_style = character_data.get("hair_style", 0)
             character.hair_color = character_data.get("hair_color", 0)
             character.tattoo = character_data.get("tattoo", 0)
-            character.x = character_data.get("x", 0.0)
+            character.x = character_data.get("x", 80.0)
             character.y = character_data.get("y", 150.0)
-            character.z = character_data.get("z", 0.0)
-            character.angle = character_data.get("angle", 0.0)
+            character.z = character_data.get("z", 200.0)
 
             # Generate a new unique ID
             character.id = self._generate_unique_character_id()

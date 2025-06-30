@@ -19,8 +19,8 @@ class TestClientCharacterMongo(unittest.TestCase):
         """Test that character initializes with correct default values."""
         self.assertEqual(self.mongo_char.id, 0)
         self.assertEqual(self.mongo_char.name, "<create new>")
-        self.assertEqual(self.mongo_char.current_hp, 0)
-        self.assertEqual(self.mongo_char.max_hp, 0)
+        self.assertEqual(self.mongo_char.current_hp, 100)
+        self.assertEqual(self.mongo_char.max_hp, 100)
         self.assertEqual(self.mongo_char.y, 150.0)
         self.assertTrue(self.mongo_char.is_not_queued_for_deletion)
         self.assertFalse(self.mongo_char.is_gender_female)

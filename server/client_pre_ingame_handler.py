@@ -1,5 +1,6 @@
 import socket
 import threading
+import time
 from typing import Callable
 from server.logger import server_logger
 from server.player_manager import player_manager
@@ -165,6 +166,8 @@ class client_pre_ingame_handler:
                 self.logger,
                 self.state_manager,
             )
+
+            time.sleep(0.05)
 
             self._create_player_instance_and_transfer_control(
                 client_socket,

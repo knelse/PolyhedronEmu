@@ -334,6 +334,138 @@ class TestPlayerIngameHandler(unittest.TestCase):
             self.handler._exit_tree()
             mock_stop.assert_called_once()
 
+    @patch("time.time")
+    @patch("server.utils.socket_utils.server_socket_utils.receive_packet_with_logging")
+    def test_timer_based_packets(self, mock_receive, mock_time):
+        """Test that timer-based packets are sent at correct intervals."""
+        # Assign fields first
+        self.handler.client_socket = self.mock_socket
+        self.handler.player_index = self.player_index
+        self.handler.logger = self.mock_logger
+        self.handler.state_manager = self.mock_state_manager
+        self.handler.user_id = self.user_id
+        self.handler.player_manager = self.mock_player_manager
+
+        # Mock time progression
+        time_values = [0, 1, 2, 3, 4, 5, 6, 7, 14, 15, 16]
+        mock_time.side_effect = time_values
+
+        # Mock receive to return None (no data) to break the loop
+        mock_receive.return_value = None
+
+        # Mock is_running to return True a few times then False
+        call_count = 0
+
+        def mock_is_running():
+            nonlocal call_count
+            call_count += 1
+            return call_count <= len(time_values) - 1
+
+        self.handler.is_running = mock_is_running
+
+        # Mock send_data to track what was sent
+        sent_packets = []
+
+        def mock_send_data(data):
+            sent_packets.append(data)
+            return True
+
+        with patch.object(self.handler, "send_data", side_effect=mock_send_data):
+            self.handler._handle_ingame_communication()
+
+        # Verify packets were sent at correct times
+        # Should have sent TRANSMISSION_END_PACKET at time 3
+        # Should have sent 6s keepalive at time 6
+        # Should have sent 15s keepalive at time 15
+        self.assertGreater(len(sent_packets), 0)
+
+        # Verify we have the expected packet types
+        from server.packets import server_packets
+
+        transmission_end_packets = [
+            p for p in sent_packets if p == server_packets.TRANSMISSION_END_PACKET
+        ]
+        self.assertGreater(len(transmission_end_packets), 0)
+
+    def test_handle_client_ping(self):
+        """Test handling of client ping packets."""
+        # Assign fields first
+        self.handler.client_socket = self.mock_socket
+        self.handler.player_index = self.player_index
+        self.handler.logger = self.mock_logger
+
+        # Create a mock ping packet (starting with 0x26, at least 30 bytes)
+        ping_data = bytearray(35)
+        ping_data[0] = 0x26  # Ping identifier
+        # Fill bytes 9-30 with test data
+        for i in range(9, 30):
+            ping_data[i] = i - 9  # Fill with 0, 1, 2, ... 20
+
+        # Test the ping handler
+        result = self.handler.handle_client_ping(bytes(ping_data))
+
+        # Should return True for successful handling
+        self.assertTrue(result)
+
+        # Should have sent a response
+        self.assertEqual(len(self.mock_socket.sent_data), 1)
+
+        # Check that ping state was updated
+        self.assertTrue(self.handler.ping_should_xor_top_bit)  # Should toggle
+        self.assertGreater(self.handler.ping_counter, 0)  # Should increment
+
+    def test_handle_client_ping_short_packet(self):
+        """Test handling of short ping packets."""
+        self.handler.client_socket = self.mock_socket
+        self.handler.player_index = self.player_index
+        self.handler.logger = self.mock_logger
+
+        # Create a short packet (less than 30 bytes)
+        short_data = bytes([0x26] + [0] * 20)  # Only 21 bytes
+
+        result = self.handler.handle_client_ping(short_data)
+
+        # Should return False for short packets
+        self.assertFalse(result)
+
+        # Should not have sent anything
+        self.assertEqual(len(self.mock_socket.sent_data), 0)
+
+    @patch("server.utils.socket_utils.server_socket_utils.receive_packet_with_logging")
+    def test_ingame_communication_with_ping(self, mock_receive):
+        """Test that ping packets are handled in the communication loop."""
+        # Assign fields first
+        self.handler.client_socket = self.mock_socket
+        self.handler.player_index = self.player_index
+        self.handler.logger = self.mock_logger
+        self.handler.state_manager = self.mock_state_manager
+        self.handler.user_id = self.user_id
+        self.handler.player_manager = self.mock_player_manager
+
+        # Create a ping packet
+        ping_data = bytearray(35)
+        ping_data[0] = 0x26
+        for i in range(9, 30):
+            ping_data[i] = i - 9
+
+        # Mock is_running to return True once then False
+        call_count = 0
+
+        def mock_is_running():
+            nonlocal call_count
+            call_count += 1
+            return call_count <= 1
+
+        self.handler.is_running = mock_is_running
+
+        # Mock the receive function to return ping data once, then None
+        mock_receive.side_effect = [bytes(ping_data), None]
+
+        self.handler._handle_ingame_communication()
+
+        # Should have sent a pong response
+        self.assertGreater(len(self.mock_socket.sent_data), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

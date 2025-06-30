@@ -96,9 +96,9 @@ class client_character:
         self.player_index: int = 0
 
         # Position and orientation
-        self.x: float = 0.0
+        self.x: float = 80.0
         self.y: float = 150.0
-        self.z: float = 0.0
+        self.z: float = 200.0
         self.angle: float = 0.0
 
         # Health and defense (now that title/degree are initialized)

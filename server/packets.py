@@ -646,7 +646,6 @@ class server_packets:
 
         stream.write_bytes(bytes([0x83, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x00]))
         stream.write_int(player_index, 16)
-
         stream.write_bytes(
             bytes(
                 [
@@ -675,7 +674,6 @@ class server_packets:
                     0x00,
                     0x00,
                     0x00,
-                    0x00,
                     0x80,
                     0x82,
                     0x20,
@@ -687,51 +685,51 @@ class server_packets:
                     0x00,
                     0x00,
                     0x00,
+                    0x14,
+                    0x04,
+                    0x61,
+                    0xA7,
+                    0x0B,
+                    0x1D,
+                    0x00,
+                    0x68,
+                    0x89,
+                    0x09,
+                    0x20,
+                    0x44,
+                    0x5D,
+                    0xE8,
+                    0x00,
+                    0x00,
+                    0x05,
+                    0x41,
+                    0x98,
+                    0x20,
+                    0x48,
+                    0x07,
+                    0x68,
                     0x01,
+                    0x00,
+                    0x00,
+                    0x28,
+                    0x08,
+                    0x02,
                     0x40,
-                    0x46,
-                    0x1A,
+                    0x2D,
+                    0x3B,
+                    0x00,
+                    0x7D,
+                    0x00,
+                    0x00,
+                    0x40,
+                    0x41,
+                    0x10,
                     0x70,
-                    0xB1,
-                    0xD0,
+                    0x6C,
+                    0xD9,
+                    0x01,
                     0x06,
-                    0x88,
-                    0x90,
-                    0x92,
-                    0x04,
-                    0x45,
-                    0xDE,
-                    0x80,
                     0x00,
-                    0x00,
-                    0x54,
-                    0x19,
-                    0x82,
-                    0x04,
-                    0x80,
-                    0x76,
-                    0x80,
-                    0x10,
-                    0x00,
-                    0x02,
-                    0x80,
-                    0x80,
-                    0x24,
-                    0x02,
-                    0xD3,
-                    0xB0,
-                    0x07,
-                    0xD0,
-                    0x00,
-                    0x04,
-                    0x04,
-                    0x11,
-                    0x07,
-                    0x06,
-                    0xCD,
-                    0x90,
-                    0x10,
-                    0x60,
                     0x00,
                     0x00,
                     0x0A,
@@ -783,17 +781,20 @@ class server_packets:
     def keepalive_6_seconds(player_index: int) -> bytes:
         """Generate a 6-second keepalive packet for the specified player."""
         stream = simple_bit_stream()
-        stream.write_bytes(bytes([0x06, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
+        stream.write_bytes(bytes([0x13, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
         stream.write_int(player_index, 16)
+        stream.write_bytes(
+            bytes([0x08, 0xC0, 0x42, 0xA0, 0xFF, 0xD3, 0x90, 0x08, 0xB0, 0x07])
+        )
         return stream.to_bytes()
 
     @staticmethod
     def keepalive_15_seconds(player_index: int) -> bytes:
         """Generate a 15-second keepalive packet for the specified player."""
         stream = simple_bit_stream()
-        stream.write_bytes(bytes([0x0A, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
+        stream.write_bytes(bytes([0x10, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x04]))
         stream.write_int(player_index, 16)
-        stream.write_bytes(bytes([0x08, 0x00]))
+        stream.write_bytes(bytes([0x08, 0x40, 0x81, 0x93, 0xEE, 0xE4, 0x08]))
         return stream.to_bytes()
 
 
